@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 // Import auth, db, and authentication functions from your Firebase.js
-import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './Firebase';
+import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './Firebase.js'; // <-- Added .js extension
 import { collection, addDoc, onSnapshot, query, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 // Get appId from the Firebase app instance (which is initialized in Firebase.js)
