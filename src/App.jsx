@@ -120,291 +120,291 @@ const App = () => {
                 setAuthMessage('Registered and logged in successfully!');
             }
         } catch (error) {
-            console.error("Auth error:", error);
-            setAuthMessage(`Error: ${error.message}`);
-        }
-    };
+                console.error("Auth error:", error);
+                setAuthMessage(`Error: ${error.message}`);
+            }
+        };
 
-    // Handle Logout
-    const handleLogout = async () => {
-        try {
-            await signOut(auth);
-            setAuthMessage('Logged out successfully!');
-            setPolicies([]); // Clear policies on logout
-            setCurrentPage('dashboard'); // Go to dashboard after logout
-        } catch (error) {
-            console.error("Logout error:", error);
-            setAuthMessage(`Error logging out: ${error.message}`);
-        }
-    };
+        // Handle Logout
+        const handleLogout = async () => {
+            try {
+                await signOut(auth);
+                setAuthMessage('Logged out successfully!');
+                setPolicies([]); // Clear policies on logout
+                setCurrentPage('dashboard'); // Go to dashboard after logout
+            } catch (error) {
+                console.error("Logout error:", error);
+                setAuthMessage(`Error logging out: ${error.message}`);
+            }
+        };
 
-    // Handle form submission for Add Policy
-    const handleAddPolicy = async (e) => {
-        e.preventDefault();
-        setAuthMessage(''); // Clear auth message, use formMessage for form specific
-        let formMsg = '';
+        // Handle form submission for Add Policy
+        const handleAddPolicy = async (e) => {
+            e.preventDefault();
+            setAuthMessage(''); // Clear auth message, use formMessage for form specific
+            let formMsg = '';
 
-        if (!db || !userId) {
-            formMsg = 'Error: Database not ready or user not authenticated. Please log in.';
-            setModalMessage(formMsg);
-            setShowModal(true);
-            return;
-        }
+            if (!db || !userId) {
+                formMsg = 'Error: Database not ready or user not authenticated. Please log in.';
+                setModalMessage(formMsg);
+                setShowModal(true);
+                return;
+            }
 
-        if (!policyNumber || !totalAmount || !policyDate || !validUntil || !firstName || !lastName) {
-            formMsg = 'Please fill in all required fields: Policy Number, Total Amount, Policy Date, Valid Until, Customer First Name, Customer Last Name.';
-            setModalMessage(formMsg);
-            setShowModal(true);
-            return;
-        }
+            if (!policyNumber || !totalAmount || !policyDate || !validUntil || !firstName || !lastName) {
+                formMsg = 'Please fill in all required fields: Policy Number, Total Amount, Policy Date, Valid Until, Customer First Name, Customer Last Name.';
+                setModalMessage(formMsg);
+                setShowModal(true);
+                return;
+            }
 
-        try {
-            const projectId = auth.app.options.projectId;
-            await addDoc(collection(db, `artifacts/${projectId}/users/${userId}/policies`), {
-                policyType,
-                policyDate,
-                validUntil,
-                totalAmount: parseFloat(totalAmount),
-                commission: parseFloat(commission) || 0,
-                policyNumber,
-                vehicleNumber,
-                insuranceType,
-                paidByCustomer,
-                paidToInsurer,
-                customer: {
-                    firstName,
-                    lastName,
-                    phoneNumber,
-                    idNumber,
-                    address,
-                    city,
-                    postalCode,
-                },
-                createdAt: serverTimestamp(),
-            });
-            setModalMessage('Policy added successfully!');
-            setShowModal(true);
-            // Clear form fields
-            setPolicyType('New Policy'); setPolicyDate(''); setValidUntil(''); setTotalAmount('');
-            setCommission(''); setPolicyNumber(''); setVehicleNumber(''); setInsuranceType('');
-            setPaidByCustomer(false); setPaidToInsurer(false); setFirstName(''); setLastName('');
-            setPhoneNumber(''); setIdNumber(''); setAddress(''); setCity(''); setPostalCode('');
-        } catch (error) {
-            console.error("Error adding document: ", error);
-            setModalMessage(`Error adding policy: ${error.message}`);
-            setShowModal(true);
-        }
-    };
+            try {
+                const projectId = auth.app.options.projectId;
+                await addDoc(collection(db, `artifacts/${projectId}/users/${userId}/policies`), {
+                    policyType,
+                    policyDate,
+                    validUntil,
+                    totalAmount: parseFloat(totalAmount),
+                    commission: parseFloat(commission) || 0,
+                    policyNumber,
+                    vehicleNumber,
+                    insuranceType,
+                    paidByCustomer,
+                    paidToInsurer,
+                    customer: {
+                        firstName,
+                        lastName,
+                        phoneNumber,
+                        idNumber,
+                        address,
+                        city,
+                        postalCode,
+                    },
+                    createdAt: serverTimestamp(),
+                });
+                setModalMessage('Policy added successfully!');
+                setShowModal(true);
+                // Clear form fields
+                setPolicyType('New Policy'); setPolicyDate(''); setValidUntil(''); setTotalAmount('');
+                setCommission(''); setPolicyNumber(''); setVehicleNumber(''); setInsuranceType('');
+                setPaidByCustomer(false); setPaidToInsurer(false); setFirstName(''); setLastName('');
+                setPhoneNumber(''); setIdNumber(''); setAddress(''); setCity(''); setPostalCode('');
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                setModalMessage(`Error adding policy: ${error.message}`);
+                setShowModal(true);
+            }
+        };
 
-    // Handle policy update (for Edit Policy Modal)
-    const handleUpdatePolicy = async (updatedPolicy) => {
-        if (!db || !userId || !updatedPolicy.id) {
-            setModalMessage('Error: Database not ready or policy ID missing.');
-            setShowModal(true);
-            return;
-        }
-        try {
-            const projectId = auth.app.options.projectId;
-            const policyRef = doc(db, `artifacts/${projectId}/users/${userId}/policies`, updatedPolicy.id);
-            await updateDoc(policyRef, {
-                policyType: updatedPolicy.policyType,
-                policyDate: updatedPolicy.policyDate,
-                validUntil: updatedPolicy.validUntil,
-                totalAmount: parseFloat(updatedPolicy.totalAmount),
-                commission: parseFloat(updatedPolicy.commission) || 0,
-                policyNumber: updatedPolicy.policyNumber,
-                vehicleNumber: updatedPolicy.vehicleNumber,
-                insuranceType: updatedPolicy.insuranceType,
-                paidByCustomer: updatedPolicy.paidByCustomer,
-                paidToInsurer: updatedPolicy.paidToInsurer,
-                customer: {
-                    firstName: updatedPolicy.customer.firstName,
-                    lastName: updatedPolicy.customer.lastName,
-                    phoneNumber: updatedPolicy.customer.phoneNumber,
-                    idNumber: updatedPolicy.customer.idNumber,
-                    address: updatedPolicy.customer.address,
-                    city: updatedPolicy.customer.city,
-                    postalCode: updatedPolicy.customer.postalCode,
-                },
-            });
-            setModalMessage('Policy updated successfully!');
-            setShowModal(true);
-            setIsPolicyEditModalOpen(false);
-            setSelectedPolicyForEdit(null);
-        } catch (error) {
-            console.error("Error updating policy: ", error);
-            setModalMessage(`Error updating policy: ${error.message}`);
-            setShowModal(true);
-        }
-    };
+        // Handle policy update (for Edit Policy Modal)
+        const handleUpdatePolicy = async (updatedPolicy) => {
+            if (!db || !userId || !updatedPolicy.id) {
+                setModalMessage('Error: Database not ready or policy ID missing.');
+                setShowModal(true);
+                return;
+            }
+            try {
+                const projectId = auth.app.options.projectId;
+                const policyRef = doc(db, `artifacts/${projectId}/users/${userId}/policies`, updatedPolicy.id);
+                await updateDoc(policyRef, {
+                    policyType: updatedPolicy.policyType,
+                    policyDate: updatedPolicy.policyDate,
+                    validUntil: updatedPolicy.validUntil,
+                    totalAmount: parseFloat(updatedPolicy.totalAmount),
+                    commission: parseFloat(updatedPolicy.commission) || 0,
+                    policyNumber: updatedPolicy.policyNumber,
+                    vehicleNumber: updatedPolicy.vehicleNumber,
+                    insuranceType: updatedPolicy.insuranceType,
+                    paidByCustomer: updatedPolicy.paidByCustomer,
+                    paidToInsurer: updatedPolicy.paidToInsurer,
+                    customer: {
+                        firstName: updatedPolicy.customer.firstName,
+                        lastName: updatedPolicy.customer.lastName,
+                        phoneNumber: updatedPolicy.customer.phoneNumber,
+                        idNumber: updatedPolicy.customer.idNumber,
+                        address: updatedPolicy.customer.address,
+                        city: updatedPolicy.customer.city,
+                        postalCode: updatedPolicy.customer.postalCode,
+                    },
+                });
+                setModalMessage('Policy updated successfully!');
+                setShowModal(true);
+                setIsPolicyEditModalOpen(false);
+                setSelectedPolicyForEdit(null);
+            } catch (error) {
+                console.error("Error updating policy: ", error);
+                setModalMessage(`Error updating policy: ${error.message}`);
+                setShowModal(true);
+            }
+        };
 
-    // Handle customer update (for Edit Customer Modal)
-    const handleUpdateCustomer = async (updatedCustomer) => {
-        if (!db || !userId || !updatedCustomer.idNumber) {
-            setModalMessage('Error: Database not ready or customer ID Number missing.');
-            setShowModal(true);
-            return;
-        }
-        try {
-            const projectId = auth.app.options.projectId;
-            // Update customer data within all policies that match the ID Number
-            const batchUpdates = policies.map(policy => {
-                if (policy.customer && policy.customer.idNumber === updatedCustomer.idNumber) {
-                    const policyRef = doc(db, `artifacts/${projectId}/users/${userId}/policies`, policy.id);
-                    return updateDoc(policyRef, {
-                        'customer.firstName': updatedCustomer.firstName,
-                        'customer.lastName': updatedCustomer.lastName,
-                        'customer.phoneNumber': updatedCustomer.phoneNumber,
-                        'customer.address': updatedCustomer.address,
-                        'customer.city': updatedCustomer.city,
-                        'customer.postalCode': updatedCustomer.postalCode,
-                        // idNumber is used as key, so it's not changed here
-                    });
-                }
-                return Promise.resolve(); // Resolve immediately for non-matching policies
-            }).filter(Boolean); // Filter out null/undefined from non-matching policies
+        // Handle customer update (for Edit Customer Modal)
+        const handleUpdateCustomer = async (updatedCustomer) => {
+            if (!db || !userId || !updatedCustomer.idNumber) {
+                setModalMessage('Error: Database not ready or customer ID Number missing.');
+                setShowModal(true);
+                return;
+            }
+            try {
+                const projectId = auth.app.options.projectId;
+                // Update customer data within all policies that match the ID Number
+                const batchUpdates = policies.map(policy => {
+                    if (policy.customer && policy.customer.idNumber === updatedCustomer.idNumber) {
+                        const policyRef = doc(db, `artifacts/${projectId}/users/${userId}/policies`, policy.id);
+                        return updateDoc(policyRef, {
+                            'customer.firstName': updatedCustomer.firstName,
+                            'customer.lastName': updatedCustomer.lastName,
+                            'customer.phoneNumber': updatedCustomer.phoneNumber,
+                            'customer.address': updatedCustomer.address,
+                            'customer.city': updatedCustomer.city,
+                            'customer.postalCode': updatedCustomer.postalCode,
+                            // idNumber is used as key, so it's not changed here
+                        });
+                    }
+                    return Promise.resolve(); // Resolve immediately for non-matching policies
+                }).filter(Boolean); // Filter out null/undefined from non-matching policies
 
-            await Promise.all(batchUpdates);
+                await Promise.all(batchUpdates);
 
-            setModalMessage('Customer details updated successfully across all associated policies!');
-            setShowModal(true);
-            setIsCustomerEditModalOpen(false);
-            setSelectedCustomerForEdit(null);
-        } catch (error) {
-            console.error("Error updating customer details: ", error);
-            setModalMessage(`Error updating customer: ${error.message}`);
-            setShowModal(true);
-        }
-    };
+                setModalMessage('Customer details updated successfully across all associated policies!');
+                setShowModal(true);
+                setIsCustomerEditModalOpen(false);
+                setSelectedCustomerForEdit(null);
+            } catch (error) {
+                console.error("Error updating customer details: ", error);
+                setModalMessage(`Error updating customer: ${error.message}`);
+                setShowModal(true);
+            }
+        };
 
-    // Helper function to format dates as YYYY-MM-DD
-    const formatDate = (dateString) => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        return date.toISOString().split('T')[0];
-    };
+        // Helper function to format dates as YYYY-MM-DD
+        const formatDate = (dateString) => {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toISOString().split('T')[0];
+        };
 
-    // Dashboard Component
-    const Dashboard = () => {
-        const totalPolicies = policies.length;
-        const totalPolicyValue = policies.reduce((acc, policy) => acc + (parseFloat(policy.totalAmount) || 0), 0);
-        const totalCommission = policies.reduce((acc, policy) => acc + (parseFloat(policy.commission) || 0), 0);
-        const policiesPaidByCustomer = policies.filter(policy => policy.paidByCustomer).length;
-        const policiesPaidToInsurer = policies.filter(policy => policy.paidToInsurer).length;
-        const overduePolicies = policies.filter(policy => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const validUntilDate = policy.validUntil ? new Date(policy.validUntil) : null;
-            return validUntilDate && validUntilDate < today;
-        }).length;
+        // Dashboard Component
+        const Dashboard = () => {
+            const totalPolicies = policies.length;
+            const totalPolicyValue = policies.reduce((acc, policy) => acc + (parseFloat(policy.totalAmount) || 0), 0);
+            const totalCommission = policies.reduce((acc, policy) => acc + (parseFloat(policy.commission) || 0), 0);
+            const policiesPaidByCustomer = policies.filter(policy => policy.paidByCustomer).length;
+            const policiesPaidToInsurer = policies.filter(policy => policy.paidToInsurer).length;
+            const overduePolicies = policies.filter(policy => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const validUntilDate = policy.validUntil ? new Date(policy.validUntil) : null;
+                return validUntilDate && validUntilDate < today;
+            }).length;
 
-        return (
-            <div className="p-6 bg-white rounded-xl shadow-sm space-y-6">
-                <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Dashboard Overview</h2>
-                {loadingPolicies ? (
-                    <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
-                        <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Loading dashboard data...
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Policies</h3>
-                            <p className="text-4xl font-bold text-gray-900">{totalPolicies}</p>
+            return (
+                <div className="p-6 bg-white rounded-xl shadow-sm space-y-6">
+                    <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Dashboard Overview</h2>
+                    {loadingPolicies ? (
+                        <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
+                            <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Loading dashboard data...
                         </div>
-                        <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Policy Value</h3>
-                            <p className="text-4xl font-bold text-gray-900">BGN {totalPolicyValue.toFixed(2)}</p>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Policies</h3>
+                                <p className="text-4xl font-bold text-gray-900">{totalPolicies}</p>
+                            </div>
+                            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Policy Value</h3>
+                                <p className="text-4xl font-bold text-gray-900">BGN {totalPolicyValue.toFixed(2)}</p>
+                            </div>
+                            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Commission (Profit)</h3>
+                                <p className="text-4xl font-bold text-gray-900">BGN {totalCommission.toFixed(2)}</p>
+                            </div>
+                            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">Overdue Policies</h3>
+                                <p className="text-4xl font-bold text-gray-900">{overduePolicies}</p>
+                            </div>
+                            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">Paid by Customer</h3>
+                                <p className="text-4xl font-bold text-gray-900">{policiesPaidByCustomer}</p>
+                            </div>
+                            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+                                <h3 className="text-lg font-semibold text-gray-700 mb-2">Paid to Insurer</h3>
+                                <p className="text-4xl font-bold text-gray-900">{policiesPaidToInsurer}</p>
+                            </div>
                         </div>
-                        <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Commission (Profit)</h3>
-                            <p className="text-4xl font-bold text-gray-900">BGN {totalCommission.toFixed(2)}</p>
-                        </div>
-                        <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Overdue Policies</h3>
-                            <p className="text-4xl font-bold text-gray-900">{overduePolicies}</p>
-                        </div>
-                        <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Paid by Customer</h3>
-                            <p className="text-4xl font-bold text-gray-900">{policiesPaidByCustomer}</p>
-                        </div>
-                        <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Paid to Insurer</h3>
-                            <p className="text-4xl font-bold text-gray-900">{policiesPaidToInsurer}</p>
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
+            );
+        };
+
+        // Add Payment / Add Expense Component (Placeholder)
+        const AddPaymentExpense = () => (
+            <div className="p-6 bg-white rounded-xl shadow-sm space-y-4">
+                <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
+                <p className="text-gray-600">This module will allow adding payments or expenses linked to policies.</p>
+                <div className="flex flex-col space-y-4 md:flex-row md:space-x-4 md:space-y-0">
+                    <input type="date" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                    <input type="number" placeholder="Amount" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                </div>
+                <textarea placeholder="Reason" rows="3" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                <input type="text" placeholder="Linked Insurance Policy (placeholder)" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                <button className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-200">Submit</button>
             </div>
         );
-    };
 
-    // Add Payment / Add Expense Component (Placeholder)
-    const AddPaymentExpense = () => (
-        <div className="p-6 bg-white rounded-xl shadow-sm space-y-4">
-            <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
-            <p className="text-gray-600">This module will allow adding payments or expenses linked to policies.</p>
-            <div className="flex flex-col space-y-4 md:flex-row md:space-x-4 md:space-y-0">
-                <input type="date" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-                <input type="number" placeholder="Amount" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-            </div>
-            <textarea placeholder="Reason" rows="3" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-            <input type="text" placeholder="Linked Insurance Policy (placeholder)" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-            <button className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-200">Submit</button>
-        </div>
-    );
+        // Financial Reports Component
+        const FinancialReports = () => {
+            const [startDate, setStartDate] = useState('');
+            const [endDate, setEndDate] = useState('');
+            const [filteredPolicies, setFilteredPolicies] = useState([]);
 
-    // Financial Reports Component
-    const FinancialReports = () => {
-        const [startDate, setStartDate] = useState('');
-        const [endDate, setEndDate] = useState('');
-        const [filteredPolicies, setFilteredPolicies] = useState([]);
+            useEffect(() => {
+                let tempPolicies = [...policies];
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    start.setHours(0, 0, 0, 0);
+                    const end = new Date(endDate);
+                    end.setHours(23, 59, 59, 999);
 
-        useEffect(() => {
-            let tempPolicies = [...policies];
-            if (startDate && endDate) {
-                const start = new Date(startDate);
-                start.setHours(0, 0, 0, 0);
-                const end = new Date(endDate);
-                end.setHours(23, 59, 59, 999);
+                    tempPolicies = tempPolicies.filter(policy => {
+                        const policyCreatedAt = policy.createdAt?.toDate();
+                        return policyCreatedAt && policyCreatedAt >= start && policyCreatedAt <= end;
+                    });
+                }
+                setFilteredPolicies(tempPolicies);
+            }, [startDate, endDate, policies]);
 
-                tempPolicies = tempPolicies.filter(policy => {
-                    const policyCreatedAt = policy.createdAt?.toDate();
-                    return policyCreatedAt && policyCreatedAt >= start && policyCreatedAt <= end;
-                });
-            }
-            setFilteredPolicies(tempPolicies);
-        }, [startDate, endDate, policies]);
+            const totalIncome = filteredPolicies.reduce((acc, policy) => acc + (parseFloat(policy.totalAmount) || 0), 0);
+            const totalCommission = filteredPolicies.reduce((acc, policy) => acc + (parseFloat(policy.commission) || 0), 0);
+            const totalExpenses = 0; // Placeholder
+            const totalUnpaidToInsurer = filteredPolicies.reduce((acc, policy) => acc + (policy.paidToInsurer ? 0 : (parseFloat(policy.totalAmount) || 0)), 0);
+            const amountDueToInsurer = totalUnpaidToInsurer - totalCommission;
 
-        const totalIncome = filteredPolicies.reduce((acc, policy) => acc + (parseFloat(policy.totalAmount) || 0), 0);
-        const totalCommission = filteredPolicies.reduce((acc, policy) => acc + (parseFloat(policy.commission) || 0), 0);
-        const totalExpenses = 0; // Placeholder
-        const totalUnpaidToInsurer = filteredPolicies.reduce((acc, policy) => acc + (policy.paidToInsurer ? 0 : (parseFloat(policy.totalAmount) || 0)), 0);
-        const amountDueToInsurer = totalUnpaidToInsurer - totalCommission;
-
-        return (
-            <div className="p-6 bg-white rounded-xl shadow-sm space-y-6">
-                <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Financial Reports</h2>
-                <div className="mb-6 flex flex-col sm:flex-row justify-center items-center gap-4">
-                    <div>
-                        <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">From Date:</label>
-                        <input type="date" id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                            className="mt-1 p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+            return (
+                <div className="p-6 bg-white rounded-xl shadow-sm space-y-6">
+                    <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Financial Reports</h2>
+                    <div className="mb-6 flex flex-col sm:flex-row justify-center items-center gap-4">
+                        <div>
+                            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">From Date:</label>
+                            <input type="date" id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                                className="mt-1 p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">To Date:</label>
+                            <input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                                className="mt-1 p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
                     </div>
-                    <div>
-                        <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">To Date:</label>
-                        <input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                            className="mt-1 p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                    </div>
-                </div>
 
-                {loadingPolicies ? (
-                    <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
-                        <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    {loadingPolicies ? (
+                        <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
+                            <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         Loading financial data...
                     </div>
@@ -523,44 +523,44 @@ const App = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.policiesCount}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">BGN {customer.totalPolicyValue.toFixed(2)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => handleEditCustomerClick(customer)}
-                                                className="text-blue-600 hover:text-blue-900 p-1 rounded-md bg-blue-50 hover:bg-blue-100 transition"
-                                            >
-                                                Edit
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-                {isCustomerEditModalOpen && (
-                    <EditCustomerModal
-                        customer={selectedCustomerForEdit}
-                        onClose={() => setIsCustomerEditModalOpen(false)}
-                        onSave={handleUpdateCustomer}
-                    />
-                )}
-            </div>
-        );
-    };
+                                                <button
+                                                    onClick={() => handleEditCustomerClick(customer)}
+                                                    className="text-blue-600 hover:text-blue-900 p-1 rounded-md bg-blue-50 hover:bg-blue-100 transition"
+                                                >
+                                                    Edit
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    {isCustomerEditModalOpen && (
+                        <EditCustomerModal
+                            customer={selectedCustomerForEdit}
+                            onClose={() => setIsCustomerEditModalOpen(false)}
+                            onSave={handleUpdateCustomer}
+                        />
+                    )}
+                </div>
+            );
+        };
 
-    // Edit Policy Modal Component
-    const EditPolicyModal = ({ policy, onClose, onSave }) => {
-        const [editPolicyData, setEditPolicyData] = useState(policy);
+        // Edit Policy Modal Component
+        const EditPolicyModal = ({ policy, onClose, onSave }) => {
+            const [editPolicyData, setEditPolicyData] = useState(policy);
 
-        useEffect(() => {
-            // Format dates for input fields
-            setEditPolicyData({
-                ...policy,
-                policyDate: formatDate(policy.policyDate),
-                validUntil: formatDate(policy.validUntil)
-            });
-        }, [policy]);
+            useEffect(() => {
+                // Format dates for input fields
+                setEditPolicyData({
+                    ...policy,
+                    policyDate: formatDate(policy.policyDate),
+                    validUntil: formatDate(policy.validUntil)
+                });
+            }, [policy]);
 
-        const handleChange = (e) => {
+            const handleChange = (e) => {
                 const { name, value, type, checked } = e.target;
                 if (name.startsWith('customer.')) {
                     const customerField = name.split('.')[1];
@@ -1197,7 +1197,7 @@ const App = () => {
                             <div className="flex flex-col items-center">
                                 <h1 className="text-3xl font-extrabold text-gray-900 mt-2">Insurance</h1>
                             </div>
-                            <button className="lg:hidden text-gray-600 text-2xl p-2" onClick={() => setIsSidebarOpen(false)}>
+                            <button className="lg:hidden text-gray-600 text-2xl p-2" onClick={() => setIsSidebarOpen(true)}>
                                 &times;
                             </button>
                         </div>
