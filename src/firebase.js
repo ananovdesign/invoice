@@ -2,8 +2,8 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Define firebaseConfig using import.meta.env variables, as seen in your old app.
-// These variables will be set in Netlify.
+// Define firebaseConfig using import.meta.env variables.
+// These variables MUST be set in Netlify with the VITE_FIREBASE_ prefix.
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
