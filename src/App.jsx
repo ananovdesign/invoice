@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+// Import deleteDoc along with other Firestore functions
 import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './firebase.js';
-import { collection, addDoc, onSnapshot, query, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+
+// Import your logo image
+import Logo from './logog.png'; // Make sure the filename matches exactly: logog.png
 
 const appId = auth.app.options.projectId;
 
@@ -43,7 +47,7 @@ const App = () => {
     // Policy & Customer Data States
     const [policies, setPolicies] = useState([]);
     const [loadingPolicies, setLoadingPolicies] = useState(true);
-    // NEW: State for payments and expenses
+    // State for payments and expenses
     const [paymentsExpenses, setPaymentsExpenses] = useState([]);
     const [loadingPaymentsExpenses, setLoadingPaymentsExpenses] = useState(true);
 
@@ -81,14 +85,14 @@ const App = () => {
     const [city, setCity] = useState('');
     const [postalCode, setPostalCode] = useState('');
 
-    // NEW: States for Add Payment/Expense form
+    // States for Add Payment/Expense form
     const [paymentExpenseType, setPaymentExpenseType] = useState('Payment');
     const [paymentExpenseDate, setPaymentExpenseDate] = useState('');
     const [paymentExpenseAmount, setPaymentExpenseAmount] = useState('');
     const [paymentExpenseReason, setPaymentExpenseReason] = useState('');
     const [selectedPolicyForPayment, setSelectedPolicyForPayment] = useState(''); // Stores policy.id
 
-    // NEW: State to manage expanded policy rows in View Policies
+    // State to manage expanded policy rows in View Policies
     const [expandedPolicyId, setExpandedPolicyId] = useState(null);
 
     // Firebase Authentication Listener
@@ -132,7 +136,7 @@ const App = () => {
         return () => unsubscribe();
     }, [db, userId, isAuthReady]);
 
-    // NEW: Fetch payments/expenses from Firestore
+    // Fetch payments/expenses from Firestore
     useEffect(() => {
         if (!db || !userId) {
             setPaymentsExpenses([]);
@@ -332,7 +336,7 @@ const App = () => {
         }
     };
 
-    // NEW: Handle adding payment/expense
+    // Handle adding payment/expense
     const handleAddPaymentExpense = async (e) => {
         e.preventDefault();
         if (!db || !userId) {
@@ -372,6 +376,60 @@ const App = () => {
         }
     };
 
+    // NEW: Handle deleting a policy
+    const handleDeletePolicy = async (policyId, policyNumber) => {
+        if (!db || !userId) {
+            setModalMessage('Error: Database not ready or user not authenticated.');
+            setShowModal(true);
+            return;
+        }
+        if (window.confirm(`Are you sure you want to delete policy number: ${policyNumber}? This will also delete all associated payments/expenses. This action cannot be undone.`)) {
+            try {
+                const projectId = auth.app.options.projectId;
+                const policyRef = doc(db, `artifacts/${projectId}/users/${userId}/policies`, policyId);
+                await deleteDoc(policyRef);
+
+                // Also delete any associated payments/expenses
+                const relatedPaymentsExpenses = paymentsExpenses.filter(item => item.policyId === policyId);
+                const deletePromises = relatedPaymentsExpenses.map(item => {
+                    const itemRef = doc(db, `artifacts/${projectId}/users/${userId}/payments_expenses`, item.id);
+                    return deleteDoc(itemRef);
+                });
+                await Promise.all(deletePromises);
+
+                setModalMessage('Policy and associated items deleted successfully!');
+                setShowModal(true);
+            } catch (error) {
+                console.error("Error deleting policy: ", error);
+                setModalMessage(`Error deleting policy: ${error.message}`);
+                setShowModal(true);
+            }
+        }
+    };
+
+    // NEW: Handle deleting a payment/expense
+    const handleDeletePaymentExpense = async (itemId, itemType, itemAmount) => {
+        if (!db || !userId) {
+            setModalMessage('Error: Database not ready or user not authenticated.');
+            setShowModal(true);
+            return;
+        }
+        if (window.confirm(`Are you sure you want to delete this ${itemType} of BGN ${itemAmount?.toFixed(2) || ''}? This action cannot be undone.`)) {
+            try {
+                const projectId = auth.app.options.projectId;
+                const itemRef = doc(db, `artifacts/${projectId}/users/${userId}/payments_expenses`, itemId);
+                await deleteDoc(itemRef);
+                setModalMessage(`${itemType} deleted successfully!`);
+                setShowModal(true);
+            } catch (error) {
+                console.error("Error deleting payment/expense: ", error);
+                setModalMessage(`Error deleting ${itemType}: ${error.message}`);
+                setShowModal(true);
+            }
+        }
+    };
+
+
     // Helper function to format dates as YYYY-MM-DD
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -394,7 +452,7 @@ const App = () => {
         }).length;
 
         return (
-            <div className="p-6 bg-white rounded-xl shadow-sm space-y-6">
+            <div className="p-6 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-xl mx-auto">
                 <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Dashboard Overview</h2>
                 {loadingPolicies ? (
                     <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
@@ -436,9 +494,9 @@ const App = () => {
         );
     };
 
-    // NEW: Add Payment / Add Expense Component
+    // Add Payment / Add Expense Component
     const AddPaymentExpense = () => (
-        <div className="p-6 bg-white rounded-xl shadow-sm space-y-4">
+        <div className="p-6 bg-white rounded-xl shadow-sm space-y-4 max-w-screen-xl mx-auto">
             <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
             <form onSubmit={handleAddPaymentExpense} className="space-y-6">
                 <div className="border border-gray-200 rounded-lg p-5">
@@ -455,7 +513,7 @@ const App = () => {
                         <div>
                             <label htmlFor="paymentExpenseDate" className="block text-sm font-medium text-gray-700">Date <span className="text-red-500">*</span></label>
                             <input type="date" id="paymentExpenseDate" value={paymentExpenseDate} onChange={(e) => setPaymentExpenseDate(e.target.value)} required
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                         </div>
                         <div className="md:col-span-2">
                             <label htmlFor="paymentExpenseAmount" className="block text-sm font-medium text-gray-700">Amount (BGN) <span className="text-red-500">*</span></label>
@@ -498,7 +556,7 @@ const App = () => {
 
         useEffect(() => {
             let tempPolicies = [...policies];
-            let tempPaymentsExpenses = [...paymentsExpenses]; // Include payments/expenses
+            let tempPaymentsExpenses = [...paymentsExpenses];
 
             if (startDate && endDate) {
                 const start = new Date(startDate);
@@ -517,18 +575,17 @@ const App = () => {
             }
             setFilteredPoliciesReport(tempPolicies);
             setFilteredPaymentsExpenses(tempPaymentsExpenses);
-        }, [startDate, endDate, policies, paymentsExpenses]); // Add paymentsExpenses to dependencies
+        }, [startDate, endDate, policies, paymentsExpenses]);
 
         const totalIncome = filteredPoliciesReport.reduce((acc, policy) => acc + (parseFloat(policy.totalAmount) || 0), 0);
         const totalCommission = filteredPoliciesReport.reduce((acc, policy) => acc + (parseFloat(policy.commission) || 0), 0);
-        // Calculate total expenses from filteredPaymentsExpenses
         const totalExpenses = filteredPaymentsExpenses.filter(item => item.type === 'Expense').reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
 
         const totalUnpaidToInsurer = filteredPoliciesReport.reduce((acc, policy) => acc + (policy.paidToInsurer ? 0 : (parseFloat(policy.totalAmount) || 0)), 0);
         const amountDueToInsurer = totalUnpaidToInsurer - totalCommission;
 
         return (
-            <div className="p-6 bg-white rounded-xl shadow-sm space-y-6">
+            <div className="p-6 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-xl mx-auto">
                 <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Financial Reports</h2>
                 <div className="mb-6 flex flex-col sm:flex-row justify-center items-center gap-4">
                     <div>
@@ -543,7 +600,7 @@ const App = () => {
                     </div>
                 </div>
 
-                {loadingPolicies || loadingPaymentsExpenses ? ( // Check both loading states
+                {loadingPolicies || loadingPaymentsExpenses ? (
                     <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
                         <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -582,7 +639,6 @@ const App = () => {
                 <div className="mt-8">
                     <h3 className="text-2xl font-semibold text-gray-800 mb-4">Detailed Breakdown</h3>
                     <div className="bg-gray-50 p-4 rounded-lg text-gray-600">
-                        {/* You can add tables here for filteredPoliciesReport and filteredPaymentsExpenses */}
                         <h4 className="text-lg font-semibold text-gray-800 mb-2">Filtered Policies</h4>
                         {filteredPoliciesReport.length > 0 ? (
                             <div className="overflow-x-auto">
@@ -630,7 +686,7 @@ const App = () => {
                                                 <td className="px-4 py-2 whitespace-nowrap text-sm">{item.type}</td>
                                                 <td className="px-4 py-2 whitespace-nowrap text-sm">{formatDate(item.date)}</td>
                                                 <td className="px-4 py-2 whitespace-nowrap text-sm">BGN {item.amount?.toFixed(2)}</td>
-                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.reason}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.reason || 'N/A'}</td>
                                                 <td className="px-4 py-2 whitespace-nowrap text-sm">
                                                     {item.policyId ? (
                                                         policies.find(p => p.id === item.policyId)?.policyNumber || 'N/A'
@@ -688,7 +744,7 @@ const App = () => {
         };
 
         return (
-            <div className="p-6 bg-white rounded-xl shadow-sm space-y-6">
+            <div className="p-6 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-xl mx-auto">
                 <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Customer Management</h2>
                 {loadingPolicies ? (
                     <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
@@ -1049,7 +1105,7 @@ const App = () => {
                 return <Dashboard />;
             case 'addPolicy':
                 return (
-                    <div className="p-6 bg-white rounded-xl shadow-sm space-y-6">
+                    <div className="p-6 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-xl mx-auto">
                         <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add New Insurance Policy</h2>
                         <form onSubmit={handleAddPolicy} className="space-y-6">
                             <div className="border border-gray-200 rounded-lg p-5">
@@ -1223,7 +1279,7 @@ const App = () => {
 
 
                 return (
-                    <div className="p-6 bg-white rounded-xl shadow-sm">
+                    <div className="p-6 bg-white rounded-xl shadow-sm max-w-screen-xl mx-auto">
                         <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">View Insurance Policies</h2>
                         {userId && (
                             <p className="text-sm text-gray-500 text-center mb-4">
@@ -1268,7 +1324,7 @@ const App = () => {
                             </div>
                         </div>
 
-                        {loadingPolicies || loadingPaymentsExpenses ? ( // Check both loading states
+                        {loadingPolicies || loadingPaymentsExpenses ? (
                             <div className="flex justify-center items-center h-48 text-indigo-600 text-xl font-semibold">
                                 <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -1283,7 +1339,7 @@ const App = () => {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>{/* For expand button */}
+                                            <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>{/* For expand button */}
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('policyNumber')}>
                                                 Policy #{getSortIndicator('policyNumber')}
                                             </th>
@@ -1312,7 +1368,7 @@ const App = () => {
                                             <React.Fragment key={policy.id}>
                                                 <tr className="hover:bg-gray-50">
                                                     <td className="px-2 py-4 text-center">
-                                                        <button onClick={() => toggleExpandedPolicy(policy.id)} className="text-gray-500 hover:text-gray-800">
+                                                        <button onClick={() => toggleExpandedPolicy(policy.id)} className="text-gray-500 hover:text-gray-800 focus:outline-none">
                                                             {expandedPolicyId === policy.id ? '▼' : '►'}
                                                         </button>
                                                     </td>
@@ -1337,14 +1393,14 @@ const App = () => {
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                        <button onClick={() => handleEditPolicyClick(policy)} className="text-indigo-600 hover:text-indigo-900 p-1 rounded-md bg-indigo-50 hover:bg-indigo-100 transition">Edit</button>
-                                                        {/* Removed "Add Payment" and "Add Expense" buttons from here as requested */}
+                                                        <button onClick={() => handleEditPolicyClick(policy)} className="text-indigo-600 hover:text-indigo-900 p-1 rounded-md bg-indigo-50 hover:bg-indigo-100 transition mr-2">Edit</button>
+                                                        <button onClick={() => handleDeletePolicy(policy.id, policy.policyNumber)} className="text-red-600 hover:text-red-900 p-1 rounded-md bg-red-50 hover:bg-red-100 transition">Delete</button>
                                                     </td>
                                                 </tr>
-                                                {/* NEW: Expanded row for payments/expenses */}
+                                                {/* Expanded row for payments/expenses */}
                                                 {expandedPolicyId === policy.id && (
                                                     <tr>
-                                                        <td colSpan="10" className="p-4 bg-gray-50 border-t border-gray-200">
+                                                        <td colSpan="11" className="p-4 bg-gray-50 border-t border-gray-200"> {/* Updated colspan */}
                                                             <div className="ml-8">
                                                                 <h4 className="text-md font-semibold text-gray-800 mb-2">Payments/Expenses for Policy {policy.policyNumber}</h4>
                                                                 {loadingPaymentsExpenses ? (
@@ -1359,6 +1415,7 @@ const App = () => {
                                                                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                                                                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                                                                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
+                                                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th> {/* New column for delete button */}
                                                                                     </tr>
                                                                                 </thead>
                                                                                 <tbody className="bg-white divide-y divide-gray-200">
@@ -1371,6 +1428,9 @@ const App = () => {
                                                                                                 <td className="px-4 py-2 whitespace-nowrap text-sm">{formatDate(item.date)}</td>
                                                                                                 <td className="px-4 py-2 whitespace-nowrap text-sm">BGN {item.amount?.toFixed(2)}</td>
                                                                                                 <td className="px-4 py-2 whitespace-nowrap text-sm">{item.reason || 'N/A'}</td>
+                                                                                                <td className="px-4 py-2 whitespace-nowrap text-right text-sm">
+                                                                                                    <button onClick={() => handleDeletePaymentExpense(item.id, item.type, item.amount)} className="text-red-600 hover:text-red-900 p-1 rounded-md bg-red-50 hover:bg-red-100 transition">Delete</button>
+                                                                                                </td>
                                                                                             </tr>
                                                                                         ))}
                                                                                 </tbody>
@@ -1413,7 +1473,7 @@ const App = () => {
         paymentsExpenses, loadingPaymentsExpenses, expandedPolicyId,
         filterPolicyType, filterCustomerName, filterPolicyNumber, filterPaidByCustomer, filterPaidToInsurer,
         sortColumn, sortDirection, isPolicyEditModalOpen, selectedPolicyForEdit, isCustomerEditModalOpen, selectedCustomerForEdit,
-        handleAddPolicy, handleUpdatePolicy, handleUpdateCustomer, userId, isAuthReady,
+        handleAddPolicy, handleUpdatePolicy, handleUpdateCustomer, handleDeletePolicy, handleDeletePaymentExpense, userId, isAuthReady,
         policyType, policyDate, validUntil, totalAmount, commission, policyNumber, vehicleNumber, insuranceType,
         paidByCustomer, paidToInsurer, firstName, lastName, phoneNumber, idNumber, address, city, postalCode,
         paymentExpenseType, paymentExpenseDate, paymentExpenseAmount, paymentExpenseReason, selectedPolicyForPayment,
@@ -1454,6 +1514,8 @@ const App = () => {
                                 w-64 bg-[#F8FAFC] text-gray-800 shadow-lg p-6 flex flex-col z-50`}>
                     <div className="flex items-center justify-between lg:justify-center mb-10">
                         <div className="flex flex-col items-center">
+                            {/* Logo added here */}
+                            <img src={Logo} alt="Company Logo" className="h-16 w-16 mb-2 object-contain" />
                             <h1 className="text-3xl font-extrabold text-gray-900 mt-2">Insurance</h1>
                         </div>
                         <button className="lg:hidden text-gray-600 text-2xl p-2" onClick={() => setIsSidebarOpen(true)}>
