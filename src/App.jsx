@@ -1,16 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// Import auth, db, and authentication functions from your Firebase.js file
-// Ensure the path is correct: './Firebase.js'
-import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './firebase.js';
+import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './Firebase.js';
 import { collection, addDoc, onSnapshot, query, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
-// Get appId from the Firebase app instance (which is initialized in Firebase.js)
-// This will be your Firebase Project ID, used for Firestore paths
 const appId = auth.app.options.projectId;
 
-// Helper function for modals (replaces alert)
+// Helper function for modals
 const Modal = ({ message, onClose }) => {
-    if (!message) return null;
+    if (!message) return null; // Only render if there's a message
     return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
@@ -28,25 +24,28 @@ const Modal = ({ message, onClose }) => {
 
 // Main App component
 const App = () => {
-    const [user, setUser] = useState(null); // Firebase user object
-    const [userId, setUserId] = useState(null); // User ID for Firestore paths
-    const [isAuthReady, setIsAuthReady] = useState(false); // Auth listener ready
+    const [user, setUser] = useState(null);
+    const [userId, setUserId] = useState(null);
+    const [isAuthReady, setIsAuthReady] = useState(false);
     const [currentPage, setCurrentPage] = useState('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // Auth Form States
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [isLogin, setIsLogin] = useState(true); // Toggle between login and register
+    const [isLogin, setIsLogin] = useState(true);
     const [authMessage, setAuthMessage] = useState('');
 
-    // General Modal State
+    // General Modal State (for all general notifications)
     const [showModal, setShowModal] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
 
     // Policy & Customer Data States
     const [policies, setPolicies] = useState([]);
     const [loadingPolicies, setLoadingPolicies] = useState(true);
+    // NEW: State for payments and expenses
+    const [paymentsExpenses, setPaymentsExpenses] = useState([]);
+    const [loadingPaymentsExpenses, setLoadingPaymentsExpenses] = useState(true);
 
     // Policy Filters and Sort States
     const [filterPolicyType, setFilterPolicyType] = useState('');
@@ -63,7 +62,7 @@ const App = () => {
     const [isCustomerEditModalOpen, setIsCustomerEditModalOpen] = useState(false);
     const [selectedCustomerForEdit, setSelectedCustomerForEdit] = useState(null);
 
-    // States for the Add Policy form (***ADDED/FIXED THESE***)
+    // States for the Add Policy form
     const [policyType, setPolicyType] = useState('New Policy');
     const [policyDate, setPolicyDate] = useState('');
     const [validUntil, setValidUntil] = useState('');
@@ -82,6 +81,15 @@ const App = () => {
     const [city, setCity] = useState('');
     const [postalCode, setPostalCode] = useState('');
 
+    // NEW: States for Add Payment/Expense form
+    const [paymentExpenseType, setPaymentExpenseType] = useState('Payment');
+    const [paymentExpenseDate, setPaymentExpenseDate] = useState('');
+    const [paymentExpenseAmount, setPaymentExpenseAmount] = useState('');
+    const [paymentExpenseReason, setPaymentExpenseReason] = useState('');
+    const [selectedPolicyForPayment, setSelectedPolicyForPayment] = useState(''); // Stores policy.id
+
+    // NEW: State to manage expanded policy rows in View Policies
+    const [expandedPolicyId, setExpandedPolicyId] = useState(null);
 
     // Firebase Authentication Listener
     useEffect(() => {
@@ -96,13 +104,12 @@ const App = () => {
     // Fetch policies from Firestore (only if user is logged in)
     useEffect(() => {
         if (!db || !userId) {
-            setPolicies([]); // Clear policies if no user or DB not ready
+            setPolicies([]);
             setLoadingPolicies(false);
             return;
         }
 
         setLoadingPolicies(true);
-        // The appId for Firestore paths will be your Firebase projectId, retrieved from Firebase.js
         const projectId = auth.app.options.projectId;
         const policiesCollectionRef = collection(db, `artifacts/${projectId}/users/${userId}/policies`);
         const q = query(policiesCollectionRef);
@@ -112,7 +119,6 @@ const App = () => {
                 id: doc.id,
                 ...doc.data()
             }));
-            // Sort policies by createdAt in descending order (newest first)
             fetchedPolicies.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
             setPolicies(fetchedPolicies);
             setLoadingPolicies(false);
@@ -124,7 +130,38 @@ const App = () => {
         });
 
         return () => unsubscribe();
-    }, [db, userId, isAuthReady]); // Depend on db, userId, and isAuthReady
+    }, [db, userId, isAuthReady]);
+
+    // NEW: Fetch payments/expenses from Firestore
+    useEffect(() => {
+        if (!db || !userId) {
+            setPaymentsExpenses([]);
+            setLoadingPaymentsExpenses(false);
+            return;
+        }
+
+        setLoadingPaymentsExpenses(true);
+        const projectId = auth.app.options.projectId;
+        const paymentsExpensesCollectionRef = collection(db, `artifacts/${projectId}/users/${userId}/payments_expenses`);
+        const q = query(paymentsExpensesCollectionRef);
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedPaymentsExpenses = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setPaymentsExpenses(fetchedPaymentsExpenses);
+            setLoadingPaymentsExpenses(false);
+        }, (error) => {
+            console.error("Error fetching payments/expenses:", error);
+            setLoadingPaymentsExpenses(false);
+            setModalMessage(`Error fetching payments/expenses: ${error.message}`);
+            setShowModal(true);
+        });
+
+        return () => unsubscribe();
+    }, [db, userId, isAuthReady]);
+
 
     // Handle Login/Register
     const handleAuth = async (e) => {
@@ -149,8 +186,9 @@ const App = () => {
         try {
             await signOut(auth);
             setAuthMessage('Logged out successfully!');
-            setPolicies([]); // Clear policies on logout
-            setCurrentPage('dashboard'); // Go to dashboard after logout
+            setPolicies([]);
+            setPaymentsExpenses([]); // Clear payments/expenses on logout
+            setCurrentPage('dashboard');
         } catch (error) {
             console.error("Logout error:", error);
             setAuthMessage(`Error logging out: ${error.message}`);
@@ -160,7 +198,7 @@ const App = () => {
     // Handle form submission for Add Policy
     const handleAddPolicy = async (e) => {
         e.preventDefault();
-        setAuthMessage(''); // Clear auth message, use formMessage for form specific
+        setAuthMessage('');
         let formMsg = '';
 
         if (!db || !userId) {
@@ -266,7 +304,6 @@ const App = () => {
         }
         try {
             const projectId = auth.app.options.projectId;
-            // Update customer data within all policies that match the ID Number
             const batchUpdates = policies.map(policy => {
                 if (policy.customer && policy.customer.idNumber === updatedCustomer.idNumber) {
                     const policyRef = doc(db, `artifacts/${projectId}/users/${userId}/policies`, policy.id);
@@ -277,11 +314,10 @@ const App = () => {
                         'customer.address': updatedCustomer.address,
                         'customer.city': updatedCustomer.city,
                         'customer.postalCode': updatedCustomer.postalCode,
-                        // idNumber is used as key, so it's not changed here
                     });
                 }
-                return Promise.resolve(); // Resolve immediately for non-matching policies
-            }).filter(Boolean); // Filter out null/undefined from non-matching policies
+                return Promise.resolve();
+            }).filter(Boolean);
 
             await Promise.all(batchUpdates);
 
@@ -292,6 +328,46 @@ const App = () => {
         } catch (error) {
             console.error("Error updating customer details: ", error);
             setModalMessage(`Error updating customer: ${error.message}`);
+            setShowModal(true);
+        }
+    };
+
+    // NEW: Handle adding payment/expense
+    const handleAddPaymentExpense = async (e) => {
+        e.preventDefault();
+        if (!db || !userId) {
+            setModalMessage('Error: Database not ready or user not authenticated. Please log in.');
+            setShowModal(true);
+            return;
+        }
+
+        if (!paymentExpenseDate || !paymentExpenseAmount || !paymentExpenseType) {
+            setModalMessage('Please fill in Date, Amount, and Type for the payment/expense.');
+            setShowModal(true);
+            return;
+        }
+
+        try {
+            const projectId = auth.app.options.projectId;
+            await addDoc(collection(db, `artifacts/${projectId}/users/${userId}/payments_expenses`), {
+                type: paymentExpenseType,
+                date: paymentExpenseDate,
+                amount: parseFloat(paymentExpenseAmount),
+                reason: paymentExpenseReason,
+                policyId: selectedPolicyForPayment || null, // Link to policy if selected
+                createdAt: serverTimestamp(),
+            });
+            setModalMessage(`${paymentExpenseType} added successfully!`);
+            setShowModal(true);
+            // Clear form fields
+            setPaymentExpenseType('Payment');
+            setPaymentExpenseDate('');
+            setPaymentExpenseAmount('');
+            setPaymentExpenseReason('');
+            setSelectedPolicyForPayment('');
+        } catch (error) {
+            console.error("Error adding payment/expense: ", error);
+            setModalMessage(`Error adding ${paymentExpenseType}: ${error.message}`);
             setShowModal(true);
         }
     };
@@ -360,18 +436,55 @@ const App = () => {
         );
     };
 
-    // Add Payment / Add Expense Component (Placeholder)
+    // NEW: Add Payment / Add Expense Component
     const AddPaymentExpense = () => (
         <div className="p-6 bg-white rounded-xl shadow-sm space-y-4">
             <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
-            <p className="text-gray-600">This module will allow adding payments or expenses linked to policies.</p>
-            <div className="flex flex-col space-y-4 md:flex-row md:space-x-4 md:space-y-0">
-                <input type="date" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-                <input type="number" placeholder="Amount" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-            </div>
-            <textarea placeholder="Reason" rows="3" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-            <input type="text" placeholder="Linked Insurance Policy (placeholder)" className="p-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-            <button className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-200">Submit</button>
+            <form onSubmit={handleAddPaymentExpense} className="space-y-6">
+                <div className="border border-gray-200 rounded-lg p-5">
+                    <h3 className="text-xl font-semibold text-gray-800 mb-4">Transaction Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="paymentExpenseType" className="block text-sm font-medium text-gray-700">Type <span className="text-red-500">*</span></label>
+                            <select id="paymentExpenseType" value={paymentExpenseType} onChange={(e) => setPaymentExpenseType(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option>Payment</option>
+                                <option>Expense</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="paymentExpenseDate" className="block text-sm font-medium text-gray-700">Date <span className="text-red-500">*</span></label>
+                            <input type="date" id="paymentExpenseDate" value={paymentExpenseDate} onChange={(e) => setPaymentExpenseDate(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="paymentExpenseAmount" className="block text-sm font-medium text-gray-700">Amount (BGN) <span className="text-red-500">*</span></label>
+                            <input type="number" step="0.01" id="paymentExpenseAmount" placeholder="Amount" value={paymentExpenseAmount} onChange={(e) => setPaymentExpenseAmount(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="paymentExpenseReason" className="block text-sm font-medium text-gray-700">Reason</label>
+                            <textarea id="paymentExpenseReason" placeholder="Reason (e.g., policy renewal, office supplies)" rows="3" value={paymentExpenseReason} onChange={(e) => setPaymentExpenseReason(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="selectedPolicyForPayment" className="block text-sm font-medium text-gray-700">Link to Policy (Optional):</label>
+                            <select id="selectedPolicyForPayment" value={selectedPolicyForPayment} onChange={(e) => setSelectedPolicyForPayment(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- No Policy --</option>
+                                {policies.map(policy => (
+                                    <option key={policy.id} value={policy.id}>
+                                        {policy.policyNumber} - {policy.customer?.firstName} {policy.customer?.lastName} ({policy.policyType})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-200">
+                    Add {paymentExpenseType}
+                </button>
+            </form>
         </div>
     );
 
@@ -379,10 +492,14 @@ const App = () => {
     const FinancialReports = () => {
         const [startDate, setStartDate] = useState('');
         const [endDate, setEndDate] = useState('');
-        const [filteredPolicies, setFilteredPolicies] = useState([]);
+        const [filteredPoliciesReport, setFilteredPoliciesReport] = useState([]);
+        const [filteredPaymentsExpenses, setFilteredPaymentsExpenses] = useState([]);
+
 
         useEffect(() => {
             let tempPolicies = [...policies];
+            let tempPaymentsExpenses = [...paymentsExpenses]; // Include payments/expenses
+
             if (startDate && endDate) {
                 const start = new Date(startDate);
                 start.setHours(0, 0, 0, 0);
@@ -393,14 +510,21 @@ const App = () => {
                     const policyCreatedAt = policy.createdAt?.toDate();
                     return policyCreatedAt && policyCreatedAt >= start && policyCreatedAt <= end;
                 });
+                tempPaymentsExpenses = tempPaymentsExpenses.filter(item => {
+                    const itemDate = item.createdAt?.toDate() || new Date(item.date); // Use createdAt or item.date for filtering
+                    return itemDate && itemDate >= start && itemDate <= end;
+                });
             }
-            setFilteredPolicies(tempPolicies);
-        }, [startDate, endDate, policies]);
+            setFilteredPoliciesReport(tempPolicies);
+            setFilteredPaymentsExpenses(tempPaymentsExpenses);
+        }, [startDate, endDate, policies, paymentsExpenses]); // Add paymentsExpenses to dependencies
 
-        const totalIncome = filteredPolicies.reduce((acc, policy) => acc + (parseFloat(policy.totalAmount) || 0), 0);
-        const totalCommission = filteredPolicies.reduce((acc, policy) => acc + (parseFloat(policy.commission) || 0), 0);
-        const totalExpenses = 0; // Placeholder
-        const totalUnpaidToInsurer = filteredPolicies.reduce((acc, policy) => acc + (policy.paidToInsurer ? 0 : (parseFloat(policy.totalAmount) || 0)), 0);
+        const totalIncome = filteredPoliciesReport.reduce((acc, policy) => acc + (parseFloat(policy.totalAmount) || 0), 0);
+        const totalCommission = filteredPoliciesReport.reduce((acc, policy) => acc + (parseFloat(policy.commission) || 0), 0);
+        // Calculate total expenses from filteredPaymentsExpenses
+        const totalExpenses = filteredPaymentsExpenses.filter(item => item.type === 'Expense').reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
+
+        const totalUnpaidToInsurer = filteredPoliciesReport.reduce((acc, policy) => acc + (policy.paidToInsurer ? 0 : (parseFloat(policy.totalAmount) || 0)), 0);
         const amountDueToInsurer = totalUnpaidToInsurer - totalCommission;
 
         return (
@@ -419,7 +543,7 @@ const App = () => {
                     </div>
                 </div>
 
-                {loadingPolicies ? (
+                {loadingPolicies || loadingPaymentsExpenses ? ( // Check both loading states
                     <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
                         <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -433,18 +557,18 @@ const App = () => {
                         <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
                             <h3 className="font-semibold text-lg text-gray-700 mb-1">Total Income</h3>
                             <p className="text-3xl font-bold text-gray-900">BGN {totalIncome.toFixed(2)}</p>
-                            <p className="text-sm text-gray-600">From {filteredPolicies.length} policies</p>
+                            <p className="text-sm text-gray-600">From {filteredPoliciesReport.length} policies</p>
                         </div>
                         {/* Total Commission */}
                         <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
                             <h3 className="font-semibold text-lg text-gray-700 mb-1">Total Commission</h3>
                             <p className="text-3xl font-bold text-gray-900">BGN {totalCommission.toFixed(2)}</p>
                         </div>
-                        {/* Total Expenses (placeholder) */}
+                        {/* Total Expenses */}
                         <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
                             <h3 className="font-semibold text-lg text-gray-700 mb-1">Total Expenses</h3>
                             <p className="text-3xl font-bold text-gray-900">BGN {totalExpenses.toFixed(2)}</p>
-                            <p className="text-sm text-gray-600"> (Currently placeholder)</p>
+                            <p className="text-sm text-gray-600">From {filteredPaymentsExpenses.filter(item => item.type === 'Expense').length} expenses</p>
                         </div>
                         {/* Amount Due to Insurer */}
                         <div className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
@@ -458,8 +582,68 @@ const App = () => {
                 <div className="mt-8">
                     <h3 className="text-2xl font-semibold text-gray-800 mb-4">Detailed Breakdown</h3>
                     <div className="bg-gray-50 p-4 rounded-lg text-gray-600">
-                        Detailed tables for Income and Expenses will be displayed here.
-                        For income, this would list filtered policies.
+                        {/* You can add tables here for filteredPoliciesReport and filteredPaymentsExpenses */}
+                        <h4 className="text-lg font-semibold text-gray-800 mb-2">Filtered Policies</h4>
+                        {filteredPoliciesReport.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-100">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Policy #</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Commission</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {filteredPoliciesReport.map(policy => (
+                                            <tr key={policy.id}>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{policy.policyNumber}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{policy.customer?.firstName} {policy.customer?.lastName}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">BGN {policy.totalAmount?.toFixed(2)}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">BGN {policy.commission?.toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500">No policies in this date range.</p>
+                        )}
+
+                        <h4 className="text-lg font-semibold text-gray-800 mt-6 mb-2">Filtered Payments & Expenses</h4>
+                        {filteredPaymentsExpenses.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-100">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Linked Policy</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {filteredPaymentsExpenses.map(item => (
+                                            <tr key={item.id}>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.type}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{formatDate(item.date)}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">BGN {item.amount?.toFixed(2)}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.reason}</td>
+                                                <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                                    {item.policyId ? (
+                                                        policies.find(p => p.id === item.policyId)?.policyNumber || 'N/A'
+                                                    ) : 'None'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500">No payments or expenses in this date range.</p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -467,13 +651,11 @@ const App = () => {
     };
 
     const CustomerManagement = () => {
-        // Extract unique customers from policies
         const uniqueCustomers = policies.reduce((acc, policy) => {
             if (policy.customer && policy.customer.idNumber) {
-                // Use ID number as a unique key for customers
                 if (!acc[policy.customer.idNumber]) {
                     acc[policy.customer.idNumber] = {
-                        idNumber: policy.customer.idNumber, // Ensure idNumber is explicitly part of the customer object
+                        idNumber: policy.customer.idNumber,
                         firstName: policy.customer.firstName,
                         lastName: policy.customer.lastName,
                         phoneNumber: policy.customer.phoneNumber,
@@ -571,7 +753,6 @@ const App = () => {
         const [editPolicyData, setEditPolicyData] = useState(policy);
 
         useEffect(() => {
-            // Format dates for input fields
             setEditPolicyData({
                 ...policy,
                 policyDate: formatDate(policy.policyDate),
@@ -870,7 +1051,6 @@ const App = () => {
                 return (
                     <div className="p-6 bg-white rounded-xl shadow-sm space-y-6">
                         <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add New Insurance Policy</h2>
-                        {/* Form message can be removed if modal is primary feedback */}
                         <form onSubmit={handleAddPolicy} className="space-y-6">
                             <div className="border border-gray-200 rounded-lg p-5">
                                 <h3 className="text-xl font-semibold text-gray-800 mb-4">Policy Details</h3>
@@ -1036,6 +1216,11 @@ const App = () => {
                     setIsPolicyEditModalOpen(true);
                 };
 
+                // Function to toggle expanded policy row
+                const toggleExpandedPolicy = (policyId) => {
+                    setExpandedPolicyId(prevId => (prevId === policyId ? null : policyId));
+                };
+
 
                 return (
                     <div className="p-6 bg-white rounded-xl shadow-sm">
@@ -1083,14 +1268,13 @@ const App = () => {
                             </div>
                         </div>
 
-
-                        {loadingPolicies ? (
+                        {loadingPolicies || loadingPaymentsExpenses ? ( // Check both loading states
                             <div className="flex justify-center items-center h-48 text-indigo-600 text-xl font-semibold">
                                 <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Loading policies...
+                                Loading policies and payments/expenses...
                             </div>
                         ) : filteredAndSortedPolicies.length === 0 ? (
                             <div className="text-center text-gray-600 text-lg">No policies found matching your criteria.</div>
@@ -1099,6 +1283,7 @@ const App = () => {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>{/* For expand button */}
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('policyNumber')}>
                                                 Policy #{getSortIndicator('policyNumber')}
                                             </th>
@@ -1124,33 +1309,82 @@ const App = () => {
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {filteredAndSortedPolicies.map((policy) => (
-                                            <tr key={policy.id} className="hover:bg-gray-50">
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{policy.policyNumber}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{policy.customer?.firstName} {policy.customer?.lastName}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{policy.policyType}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">BGN {policy.totalAmount?.toFixed(2)}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDate(policy.policyDate)}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDate(policy.validUntil)}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                    {policy.paidByCustomer ? (
-                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Yes</span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">No</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                    {policy.paidToInsurer ? (
-                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Yes</span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">No</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <button onClick={() => handleEditPolicyClick(policy)} className="text-indigo-600 hover:text-indigo-900 mr-2 p-1 rounded-md bg-indigo-50 hover:bg-indigo-100 transition">Edit</button>
-                                                    <button className="text-green-600 hover:text-green-900 mr-2 p-1 rounded-md bg-green-50 hover:bg-green-100 transition">Add Payment</button>
-                                                    <button className="text-yellow-600 hover:text-yellow-900 p-1 rounded-md bg-yellow-50 hover:bg-yellow-100 transition">Add Expense</button>
-                                                </td>
-                                            </tr>
+                                            <React.Fragment key={policy.id}>
+                                                <tr className="hover:bg-gray-50">
+                                                    <td className="px-2 py-4 text-center">
+                                                        <button onClick={() => toggleExpandedPolicy(policy.id)} className="text-gray-500 hover:text-gray-800">
+                                                            {expandedPolicyId === policy.id ? '▼' : '►'}
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{policy.policyNumber}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{policy.customer?.firstName} {policy.customer?.lastName}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{policy.policyType}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">BGN {policy.totalAmount?.toFixed(2)}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDate(policy.policyDate)}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDate(policy.validUntil)}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                        {policy.paidByCustomer ? (
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Yes</span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">No</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                        {policy.paidToInsurer ? (
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Yes</span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">No</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <button onClick={() => handleEditPolicyClick(policy)} className="text-indigo-600 hover:text-indigo-900 p-1 rounded-md bg-indigo-50 hover:bg-indigo-100 transition">Edit</button>
+                                                        {/* Removed "Add Payment" and "Add Expense" buttons from here as requested */}
+                                                    </td>
+                                                </tr>
+                                                {/* NEW: Expanded row for payments/expenses */}
+                                                {expandedPolicyId === policy.id && (
+                                                    <tr>
+                                                        <td colSpan="10" className="p-4 bg-gray-50 border-t border-gray-200">
+                                                            <div className="ml-8">
+                                                                <h4 className="text-md font-semibold text-gray-800 mb-2">Payments/Expenses for Policy {policy.policyNumber}</h4>
+                                                                {loadingPaymentsExpenses ? (
+                                                                    <div className="text-gray-600 text-sm">Loading linked payments/expenses...</div>
+                                                                ) : (
+                                                                    paymentsExpenses.filter(item => item.policyId === policy.id).length > 0 ? (
+                                                                        <div className="overflow-x-auto">
+                                                                            <table className="min-w-full divide-y divide-gray-200">
+                                                                                <thead className="bg-gray-100">
+                                                                                    <tr>
+                                                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                                                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="bg-white divide-y divide-gray-200">
+                                                                                    {paymentsExpenses
+                                                                                        .filter(item => item.policyId === policy.id)
+                                                                                        .sort((a, b) => (b.createdAt?.toDate() || new Date(b.date)).getTime() - (a.createdAt?.toDate() || new Date(a.date)).getTime())
+                                                                                        .map(item => (
+                                                                                            <tr key={item.id}>
+                                                                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.type}</td>
+                                                                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{formatDate(item.date)}</td>
+                                                                                                <td className="px-4 py-2 whitespace-nowrap text-sm">BGN {item.amount?.toFixed(2)}</td>
+                                                                                                <td className="px-4 py-2 whitespace-nowrap text-sm">{item.reason || 'N/A'}</td>
+                                                                                            </tr>
+                                                                                        ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <p className="text-sm text-gray-600">No linked payments or expenses for this policy.</p>
+                                                                    )
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
                                         ))}
                                     </tbody>
                                 </table>
@@ -1176,11 +1410,14 @@ const App = () => {
         }
     }, [
         user, isLogin, email, password, authMessage, handleAuth, currentPage, policies, loadingPolicies,
+        paymentsExpenses, loadingPaymentsExpenses, expandedPolicyId,
         filterPolicyType, filterCustomerName, filterPolicyNumber, filterPaidByCustomer, filterPaidToInsurer,
         sortColumn, sortDirection, isPolicyEditModalOpen, selectedPolicyForEdit, isCustomerEditModalOpen, selectedCustomerForEdit,
-        handleAddPolicy, handleUpdatePolicy, handleUpdateCustomer, userId, isAuthReady, // Added all new states here for useCallback dependencies
+        handleAddPolicy, handleUpdatePolicy, handleUpdateCustomer, userId, isAuthReady,
         policyType, policyDate, validUntil, totalAmount, commission, policyNumber, vehicleNumber, insuranceType,
-        paidByCustomer, paidToInsurer, firstName, lastName, phoneNumber, idNumber, address, city, postalCode
+        paidByCustomer, paidToInsurer, firstName, lastName, phoneNumber, idNumber, address, city, postalCode,
+        paymentExpenseType, paymentExpenseDate, paymentExpenseAmount, paymentExpenseReason, selectedPolicyForPayment,
+        handleAddPaymentExpense
     ]);
 
 
@@ -1288,7 +1525,8 @@ const App = () => {
                         {renderPage()}
                     </main>
                 </div>
-                <Modal message={modalMessage} onClose={() => setShowModal(false)} />
+                {/* Fixed the Modal onClose to clear the message as well */}
+                <Modal message={modalMessage} onClose={() => { setShowModal(false); setModalMessage(''); }} />
             </div>
         </div>
     );
