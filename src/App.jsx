@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './Firebase.js';
+import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './firebase.js';
 import { collection, addDoc, onSnapshot, query, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 const appId = auth.app.options.projectId;
