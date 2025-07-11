@@ -376,7 +376,7 @@ const App = () => {
         }
     };
 
-    // NEW: Handle deleting a policy
+    // Handle deleting a policy
     const handleDeletePolicy = async (policyId, policyNumber) => {
         if (!db || !userId) {
             setModalMessage('Error: Database not ready or user not authenticated.');
@@ -407,7 +407,7 @@ const App = () => {
         }
     };
 
-    // NEW: Handle deleting a payment/expense
+    // Handle deleting a payment/expense
     const handleDeletePaymentExpense = async (itemId, itemType, itemAmount) => {
         if (!db || !userId) {
             setModalMessage('Error: Database not ready or user not authenticated.');
@@ -452,7 +452,8 @@ const App = () => {
         }).length;
 
         return (
-            <div className="p-6 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-xl mx-auto">
+            // Adjusted padding and max-width here
+            <div className="p-5 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-lg mx-auto">
                 <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Dashboard Overview</h2>
                 {loadingPolicies ? (
                     <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
@@ -496,7 +497,8 @@ const App = () => {
 
     // Add Payment / Add Expense Component
     const AddPaymentExpense = () => (
-        <div className="p-6 bg-white rounded-xl shadow-sm space-y-4 max-w-screen-xl mx-auto">
+        // Adjusted padding and max-width here
+        <div className="p-5 bg-white rounded-xl shadow-sm space-y-4 max-w-screen-lg mx-auto">
             <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
             <form onSubmit={handleAddPaymentExpense} className="space-y-6">
                 <div className="border border-gray-200 rounded-lg p-5">
@@ -585,7 +587,8 @@ const App = () => {
         const amountDueToInsurer = totalUnpaidToInsurer - totalCommission;
 
         return (
-            <div className="p-6 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-xl mx-auto">
+            // Adjusted padding and max-width here
+            <div className="p-5 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-lg mx-auto">
                 <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Financial Reports</h2>
                 <div className="mb-6 flex flex-col sm:flex-row justify-center items-center gap-4">
                     <div>
@@ -596,7 +599,7 @@ const App = () => {
                     <div>
                         <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">To Date:</label>
                         <input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                            className="mt-1 p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                 </div>
 
@@ -744,7 +747,8 @@ const App = () => {
         };
 
         return (
-            <div className="p-6 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-xl mx-auto">
+            // Adjusted padding and max-width here
+            <div className="p-5 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-lg mx-auto">
                 <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Customer Management</h2>
                 {loadingPolicies ? (
                     <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
@@ -1105,7 +1109,8 @@ const App = () => {
                 return <Dashboard />;
             case 'addPolicy':
                 return (
-                    <div className="p-6 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-xl mx-auto">
+                    // Adjusted padding and max-width here
+                    <div className="p-5 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-lg mx-auto">
                         <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add New Insurance Policy</h2>
                         <form onSubmit={handleAddPolicy} className="space-y-6">
                             <div className="border border-gray-200 rounded-lg p-5">
@@ -1279,7 +1284,8 @@ const App = () => {
 
 
                 return (
-                    <div className="p-6 bg-white rounded-xl shadow-sm max-w-screen-xl mx-auto">
+                    // Adjusted padding and max-width here
+                    <div className="p-5 bg-white rounded-xl shadow-sm max-w-screen-lg mx-auto">
                         <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">View Insurance Policies</h2>
                         {userId && (
                             <p className="text-sm text-gray-500 text-center mb-4">
@@ -1400,7 +1406,7 @@ const App = () => {
                                                 {/* Expanded row for payments/expenses */}
                                                 {expandedPolicyId === policy.id && (
                                                     <tr>
-                                                        <td colSpan="11" className="p-4 bg-gray-50 border-t border-gray-200"> {/* Updated colspan */}
+                                                        <td colSpan="11" className="p-4 bg-gray-50 border-t border-gray-200">
                                                             <div className="ml-8">
                                                                 <h4 className="text-md font-semibold text-gray-800 mb-2">Payments/Expenses for Policy {policy.policyNumber}</h4>
                                                                 {loadingPaymentsExpenses ? (
