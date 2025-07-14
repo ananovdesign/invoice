@@ -35,7 +35,7 @@ const AddPaymentExpenseForm = ({
     handleAddPaymentExpense
 }) => {
     return (
-        <div className="p-5 bg-white rounded-xl shadow-sm space-y-4">
+        <div className="p-5 bg-white rounded-xl shadow-sm space-y-4"> {/* Removed max-w-screen-lg and mx-auto */}
             <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
             <form onSubmit={handleAddPaymentExpense} className="space-y-6">
                 <div className="border border-gray-200 rounded-lg p-5">
@@ -85,6 +85,7 @@ const AddPaymentExpenseForm = ({
         </div>
     );
 };
+
 
 // Extracted Dashboard Component
 const Dashboard = ({ policies, loadingPolicies }) => {
@@ -1094,7 +1095,8 @@ const App = () => {
                 }
                 `}
             </style>
-            <script src="https://cdn.tailwindcss.com"></script>
+            {/* The Tailwind CSS CDN script tag is typically placed in public/index.html or as a PostCSS plugin */}
+            {/* <script src="https://cdn.tailwindcss.com"></script> */}
 
             <div className="flex flex-col lg:flex-row min-h-screen">
                 {/* Sidebar */}
@@ -1312,10 +1314,10 @@ const App = () => {
                                             selectedPolicyForEdit={selectedPolicyForEdit} setSelectedPolicyForEdit={setSelectedPolicyForEdit}
                                             expandedPolicyId={expandedPolicyId} setExpandedPolicyId={setExpandedPolicyId}
                                             handleDeletePolicy={handleDeletePolicy}
-                                            handleEditPolicyClick={() => { /* This function is already defined in ViewPolicies, so no need to pass it from App */ }} // Corrected: This function is defined within ViewPolicies.
-                                            handleDeletePaymentExpense={handleDeletePaymentExpense}
-                                            formatDate={formatDate}
-                                            userId={userId} // Pass userId to ViewPolicies if needed for display purposes
+                                            handleEditPolicyClick={handleEditPolicyClick} // THIS IS THE KEY FIX
+                                            handleDeletePaymentExpense={handleDeletePaymentExpense} // Ensure this is also passed
+                                            formatDate={formatDate} // Ensure this is also passed
+                                            userId={userId} // userId for display if needed
                                         />
                                     )}
                                     {isPolicyEditModalOpen && (
