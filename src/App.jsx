@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './Firebase.js';
+import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './firebase.js';
 import { collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 import Logo from './logog.png'; // Make sure the filename matches exactly: logog.png
