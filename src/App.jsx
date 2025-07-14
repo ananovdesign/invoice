@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// Import deleteDoc along with other Firestore functions
 import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './firebase.js';
 import { collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
-// Import your logo image
 import Logo from './logog.png'; // Make sure the filename matches exactly: logog.png
 
 const appId = auth.app.options.projectId;
@@ -25,6 +23,69 @@ const Modal = ({ message, onClose }) => {
         </div>
     );
 };
+
+// Extracted AddPaymentExpenseForm component for better performance and focus handling
+const AddPaymentExpenseForm = ({
+    policies,
+    paymentExpenseType, setPaymentExpenseType,
+    paymentExpenseDate, setPaymentExpenseDate,
+    paymentExpenseAmount, setPaymentExpenseAmount,
+    paymentExpenseReason, setPaymentExpenseReason,
+    selectedPolicyForPayment, setSelectedPolicyForPayment,
+    handleAddPaymentExpense
+}) => {
+    return (
+        <div className="p-5 bg-white rounded-xl shadow-sm space-y-4"> {/* Removed max-w-screen-lg and mx-auto */}
+            <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
+            <form onSubmit={handleAddPaymentExpense} className="space-y-6">
+                <div className="border border-gray-200 rounded-lg p-5">
+                    <h3 className="text-xl font-semibold text-gray-800 mb-4">Transaction Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="paymentExpenseType" className="block text-sm font-medium text-gray-700">Type <span className="text-red-500">*</span></label>
+                            <select id="paymentExpenseType" value={paymentExpenseType} onChange={(e) => setPaymentExpenseType(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option>Payment</option>
+                                <option>Expense</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="paymentExpenseDate" className="block text-sm font-medium text-gray-700">Date <span className="text-red-500">*</span></label>
+                            <input type="date" id="paymentExpenseDate" value={paymentExpenseDate} onChange={(e) => setPaymentExpenseDate(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="paymentExpenseAmount" className="block text-sm font-medium text-gray-700">Amount (BGN) <span className="text-red-500">*</span></label>
+                            <input type="number" step="0.01" id="paymentExpenseAmount" placeholder="Amount" value={paymentExpenseAmount} onChange={(e) => setPaymentExpenseAmount(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="paymentExpenseReason" className="block text-sm font-medium text-gray-700">Reason</label>
+                            <textarea id="paymentExpenseReason" placeholder="Reason (e.g., policy renewal, office supplies)" rows="3" value={paymentExpenseReason} onChange={(e) => setPaymentExpenseReason(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="selectedPolicyForPayment" className="block text-sm font-medium text-gray-700">Link to Policy (Optional):</label>
+                            <select id="selectedPolicyForPayment" value={selectedPolicyForPayment} onChange={(e) => setSelectedPolicyForPayment(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- No Policy --</option>
+                                {policies.map(policy => (
+                                    <option key={policy.id} value={policy.id}>
+                                        {policy.policyNumber} - {policy.customer?.firstName} {policy.customer?.lastName} ({policy.policyType})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-200">
+                    Add {paymentExpenseType}
+                </button>
+            </form>
+        </div>
+    );
+};
+
 
 // Main App component
 const App = () => {
@@ -57,6 +118,11 @@ const App = () => {
     const [filterPolicyNumber, setFilterPolicyNumber] = useState('');
     const [filterPaidByCustomer, setFilterPaidByCustomer] = useState('all');
     const [filterPaidToInsurer, setFilterPaidToInsurer] = useState('all');
+    // NEW: States for Valid Until date filtering in View Policies
+    const [filterValidUntilStartDate, setFilterValidUntilStartDate] = useState('');
+    const [filterValidUntilEndDate, setFilterValidUntilEndDate] = useState('');
+
+
     const [sortColumn, setSortColumn] = useState('createdAt');
     const [sortDirection, setSortDirection] = useState('desc');
 
@@ -452,8 +518,8 @@ const App = () => {
         }).length;
 
         return (
-            // Adjusted padding and max-width here
-            <div className="p-5 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-lg mx-auto">
+            // Removed max-w-screen-lg and mx-auto
+            <div className="p-5 bg-white rounded-xl shadow-sm space-y-6">
                 <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Dashboard Overview</h2>
                 {loadingPolicies ? (
                     <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
@@ -495,59 +561,6 @@ const App = () => {
         );
     };
 
-    // Add Payment / Add Expense Component
-    const AddPaymentExpense = () => (
-        // Adjusted padding and max-width here
-        <div className="p-5 bg-white rounded-xl shadow-sm space-y-4 max-w-screen-lg mx-auto">
-            <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
-            <form onSubmit={handleAddPaymentExpense} className="space-y-6">
-                <div className="border border-gray-200 rounded-lg p-5">
-                    <h3 className="text-xl font-semibold text-gray-800 mb-4">Transaction Details</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label htmlFor="paymentExpenseType" className="block text-sm font-medium text-gray-700">Type <span className="text-red-500">*</span></label>
-                            <select id="paymentExpenseType" value={paymentExpenseType} onChange={(e) => setPaymentExpenseType(e.target.value)}
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                <option>Payment</option>
-                                <option>Expense</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="paymentExpenseDate" className="block text-sm font-medium text-gray-700">Date <span className="text-red-500">*</span></label>
-                            <input type="date" id="paymentExpenseDate" value={paymentExpenseDate} onChange={(e) => setPaymentExpenseDate(e.target.value)} required
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label htmlFor="paymentExpenseAmount" className="block text-sm font-medium text-gray-700">Amount (BGN) <span className="text-red-500">*</span></label>
-                            <input type="number" step="0.01" id="paymentExpenseAmount" placeholder="Amount" value={paymentExpenseAmount} onChange={(e) => setPaymentExpenseAmount(e.target.value)} required
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label htmlFor="paymentExpenseReason" className="block text-sm font-medium text-gray-700">Reason</label>
-                            <textarea id="paymentExpenseReason" placeholder="Reason (e.g., policy renewal, office supplies)" rows="3" value={paymentExpenseReason} onChange={(e) => setPaymentExpenseReason(e.target.value)}
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label htmlFor="selectedPolicyForPayment" className="block text-sm font-medium text-gray-700">Link to Policy (Optional):</label>
-                            <select id="selectedPolicyForPayment" value={selectedPolicyForPayment} onChange={(e) => setSelectedPolicyForPayment(e.target.value)}
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- No Policy --</option>
-                                {policies.map(policy => (
-                                    <option key={policy.id} value={policy.id}>
-                                        {policy.policyNumber} - {policy.customer?.firstName} {policy.customer?.lastName} ({policy.policyType})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-200">
-                    Add {paymentExpenseType}
-                </button>
-            </form>
-        </div>
-    );
-
     // Financial Reports Component
     const FinancialReports = () => {
         const [startDate, setStartDate] = useState('');
@@ -583,18 +596,23 @@ const App = () => {
         const totalCommission = filteredPoliciesReport.reduce((acc, policy) => acc + (parseFloat(policy.commission) || 0), 0);
         const totalExpenses = filteredPaymentsExpenses.filter(item => item.type === 'Expense').reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
 
+        // NEW CALCULATION: Commission only for policies NOT paid to insurer
+        const commissionNotPaidToInsurer = filteredPoliciesReport.reduce((acc, policy) =>
+            acc + (policy.paidToInsurer ? 0 : (parseFloat(policy.commission) || 0)), 0
+        );
+        // Corrected Amount Due to Insurer calculation
         const totalUnpaidToInsurer = filteredPoliciesReport.reduce((acc, policy) => acc + (policy.paidToInsurer ? 0 : (parseFloat(policy.totalAmount) || 0)), 0);
-        const amountDueToInsurer = totalUnpaidToInsurer - totalCommission;
+        const amountDueToInsurer = totalUnpaidToInsurer - commissionNotPaidToInsurer;
 
         return (
-            // Adjusted padding and max-width here
-            <div className="p-5 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-lg mx-auto">
+            // Removed max-w-screen-lg and mx-auto
+            <div className="p-5 bg-white rounded-xl shadow-sm space-y-6">
                 <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Financial Reports</h2>
                 <div className="mb-6 flex flex-col sm:flex-row justify-center items-center gap-4">
                     <div>
                         <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">From Date:</label>
                         <input type="date" id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                            className="mt-1 p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                     <div>
                         <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">To Date:</label>
@@ -747,8 +765,8 @@ const App = () => {
         };
 
         return (
-            // Adjusted padding and max-width here
-            <div className="p-5 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-lg mx-auto">
+            // Removed max-w-screen-lg and mx-auto
+            <div className="p-5 bg-white rounded-xl shadow-sm space-y-6">
                 <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Customer Management</h2>
                 {loadingPolicies ? (
                     <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
@@ -1109,8 +1127,8 @@ const App = () => {
                 return <Dashboard />;
             case 'addPolicy':
                 return (
-                    // Adjusted padding and max-width here
-                    <div className="p-5 bg-white rounded-xl shadow-sm space-y-6 max-w-screen-lg mx-auto">
+                    // Removed max-w-screen-lg and mx-auto
+                    <div className="p-5 bg-white rounded-xl shadow-sm space-y-6">
                         <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add New Insurance Policy</h2>
                         <form onSubmit={handleAddPolicy} className="space-y-6">
                             <div className="border border-gray-200 rounded-lg p-5">
@@ -1235,7 +1253,23 @@ const App = () => {
                         const matchesPolicyNumber = filterPolicyNumber === '' || policy.policyNumber.toLowerCase().includes(filterPolicyNumber.toLowerCase());
                         const matchesPaidByCustomer = filterPaidByCustomer === 'all' || policy.paidByCustomer === (filterPaidByCustomer === 'yes');
                         const matchesPaidToInsurer = filterPaidToInsurer === 'all' || policy.paidToInsurer === (filterPaidToInsurer === 'yes');
-                        return matchesPolicyType && matchesCustomerName && matchesPolicyNumber && matchesPaidByCustomer && matchesPaidToInsurer;
+
+                        // NEW: Filter by Valid Until date range
+                        let matchesValidUntilDate = true;
+                        if (filterValidUntilStartDate && policy.validUntil) {
+                            const start = new Date(filterValidUntilStartDate);
+                            start.setHours(0, 0, 0, 0);
+                            const policyValidUntil = new Date(policy.validUntil);
+                            matchesValidUntilDate = matchesValidUntilDate && policyValidUntil >= start;
+                        }
+                        if (filterValidUntilEndDate && policy.validUntil) {
+                            const end = new Date(filterValidUntilEndDate);
+                            end.setHours(23, 59, 59, 999);
+                            const policyValidUntil = new Date(policy.validUntil);
+                            matchesValidUntilDate = matchesValidUntilDate && policyValidUntil <= end;
+                        }
+
+                        return matchesPolicyType && matchesCustomerName && matchesPolicyNumber && matchesPaidByCustomer && matchesPaidToInsurer && matchesValidUntilDate;
                     })
                     .sort((a, b) => {
                         let valA, valB;
@@ -1284,8 +1318,8 @@ const App = () => {
 
 
                 return (
-                    // Adjusted padding and max-width here
-                    <div className="p-5 bg-white rounded-xl shadow-sm max-w-screen-lg mx-auto">
+                    // Removed max-w-screen-lg and mx-auto
+                    <div className="p-5 bg-white rounded-xl shadow-sm">
                         <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">View Insurance Policies</h2>
                         {userId && (
                             <p className="text-sm text-gray-500 text-center mb-4">
@@ -1327,6 +1361,17 @@ const App = () => {
                                     <option value="yes">Yes</option>
                                     <option value="no">No</option>
                                 </select>
+                            </div>
+                             {/* NEW: Valid Until date filters */}
+                            <div>
+                                <label htmlFor="filterValidUntilStartDate" className="block text-sm font-medium text-gray-700">Valid Until From:</label>
+                                <input type="date" id="filterValidUntilStartDate" value={filterValidUntilStartDate} onChange={(e) => setFilterValidUntilStartDate(e.target.value)}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
+                            </div>
+                            <div>
+                                <label htmlFor="filterValidUntilEndDate" className="block text-sm font-medium text-gray-700">Valid Until To:</label>
+                                <input type="date" id="filterValidUntilEndDate" value={filterValidUntilEndDate} onChange={(e) => setFilterValidUntilEndDate(e.target.value)}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
                             </div>
                         </div>
 
@@ -1468,9 +1513,78 @@ const App = () => {
             case 'financialReports':
                 return <FinancialReports />;
             case 'addPaymentExpense':
-                return <AddPaymentExpense />;
+                return (
+                    <AddPaymentExpenseForm
+                        policies={policies} // Pass policies for the dropdown
+                        paymentExpenseType={paymentExpenseType} setPaymentExpenseType={setPaymentExpenseType}
+                        paymentExpenseDate={paymentExpenseDate} setPaymentExpenseDate={setPaymentExpenseDate}
+                        paymentExpenseAmount={paymentExpenseAmount} setPaymentExpenseAmount={setPaymentExpenseAmount}
+                        paymentExpenseReason={paymentExpenseReason} setPaymentExpenseReason={setPaymentExpenseReason}
+                        selectedPolicyForPayment={selectedPolicyForPayment} setSelectedPolicyForPayment={setSelectedPolicyForPayment}
+                        handleAddPaymentExpense={handleAddPaymentExpense} // Pass the handler
+                    />
+                );
             case 'customerManagement':
-                return <CustomerManagement />;
+                return (
+                    // Removed max-w-screen-lg and mx-auto
+                    <div className="p-5 bg-white rounded-xl shadow-sm space-y-6">
+                        <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Customer Management</h2>
+                        {loadingPolicies ? (
+                            <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
+                                <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Loading customer data...
+                            </div>
+                        ) : customersList.length === 0 ? (
+                            <div className="text-center text-gray-600 text-lg">No customers found. Add policies to populate customer data.</div>
+                        ) : (
+                            <div className="overflow-x-auto rounded-lg shadow-sm">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Number</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policies</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Policy Value</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {customersList.map((customer, index) => (
+                                            <tr key={customer.idNumber || index} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{customer.firstName} {customer.lastName}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.phoneNumber}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.idNumber}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.city}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.policiesCount}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">BGN {customer.totalPolicyValue.toFixed(2)}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <button
+                                                        onClick={() => handleEditCustomerClick(customer)}
+                                                        className="text-blue-600 hover:text-blue-900 p-1 rounded-md bg-blue-50 hover:bg-blue-100 transition"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                        {isCustomerEditModalOpen && (
+                            <EditCustomerModal
+                                customer={selectedCustomerForEdit}
+                                onClose={() => setIsCustomerEditModalOpen(false)}
+                                onSave={handleUpdateCustomer}
+                            />
+                        )}
+                    </div>
+                );
             default:
                 return null;
         }
@@ -1478,6 +1592,7 @@ const App = () => {
         user, isLogin, email, password, authMessage, handleAuth, currentPage, policies, loadingPolicies,
         paymentsExpenses, loadingPaymentsExpenses, expandedPolicyId,
         filterPolicyType, filterCustomerName, filterPolicyNumber, filterPaidByCustomer, filterPaidToInsurer,
+        filterValidUntilStartDate, filterValidUntilEndDate, // NEW DEPENDENCIES for Valid Until filter
         sortColumn, sortDirection, isPolicyEditModalOpen, selectedPolicyForEdit, isCustomerEditModalOpen, selectedCustomerForEdit,
         handleAddPolicy, handleUpdatePolicy, handleUpdateCustomer, handleDeletePolicy, handleDeletePaymentExpense, userId, isAuthReady,
         policyType, policyDate, validUntil, totalAmount, commission, policyNumber, vehicleNumber, insuranceType,
@@ -1516,8 +1631,9 @@ const App = () => {
 
             <div className="flex flex-col lg:flex-row min-h-screen">
                 {/* Sidebar */}
+                {/* ADJUSTED w-64 to w-56 */}
                 <aside className={`fixed lg:static inset-y-0 left-0 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out
-                                w-64 bg-[#F8FAFC] text-gray-800 shadow-lg p-6 flex flex-col z-50`}>
+                                w-56 bg-[#F8FAFC] text-gray-800 shadow-lg p-6 flex flex-col z-50`}>
                     <div className="flex items-center justify-between lg:justify-center mb-10">
                         <div className="flex flex-col items-center">
                             {/* Logo added here */}
@@ -1580,7 +1696,8 @@ const App = () => {
                 </aside>
 
                 {/* Main Content Area */}
-                <div className="flex-1 lg:ml-64 p-4 sm:p-6 md:p-8">
+                {/* ADJUSTED lg:ml-64 to lg:ml-56 */}
+                <div className="flex-1 lg:ml-56 p-4 sm:p-6 md:p-8">
                     {/* Mobile Header/Hamburger Menu */}
                     <header className="lg:hidden flex items-center justify-between mb-8 p-4 bg-white rounded-xl shadow-sm">
                         <h1 className="text-2xl font-extrabold text-gray-900">Insurance</h1>
@@ -1593,7 +1710,7 @@ const App = () => {
                         {renderPage()}
                     </main>
                 </div>
-                {/* Fixed the Modal onClose to clear the message as well */}
+                {/* Modal fixed to clear message on close as well */}
                 <Modal message={modalMessage} onClose={() => { setShowModal(false); setModalMessage(''); }} />
             </div>
         </div>
