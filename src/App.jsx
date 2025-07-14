@@ -24,7 +24,7 @@ const Modal = ({ message, onClose }) => {
     );
 };
 
-// --- Extracted Components (defined outside App for proper scoping) ---
+// --- EXTRACTED COMPONENTS DEFINED HERE (OUTSIDE OF APP) ---
 
 const AddPaymentExpenseForm = ({
     policies,
@@ -322,13 +322,11 @@ const ViewPolicies = ({
     filterValidUntilEndDate, setFilterValidUntilEndDate,
     sortColumn, setSortColumn,
     sortDirection, setSortDirection,
-    isPolicyEditModalOpen, setIsPolicyEditModalOpen,
-    selectedPolicyForEdit, setSelectedPolicyForEdit,
-    expandedPolicyId, setExpandedPolicyId,
+    expandedPolicyId, setExpandedPolicyId, // Removed isPolicyEditModalOpen and selectedPolicyForEdit here
     handleDeletePolicy,
-    handleEditPolicyClick, // This is now a prop
-    handleDeletePaymentExpense, // This is now a prop
-    formatDate, // This is now a prop
+    handleEditPolicyClick, // This is now a prop from App
+    handleDeletePaymentExpense, // This is now a prop from App
+    formatDate, // This is now a prop from App
     userId // userId for display if needed
 }) => {
     const filteredAndSortedPolicies = policies
@@ -391,8 +389,6 @@ const ViewPolicies = ({
         }
         return '';
     };
-
-    // Note: handleEditPolicyClick is now a prop, so it needs to be called directly.
 
     // Function to toggle expanded policy row
     const toggleExpandedPolicy = (policyId) => {
@@ -587,7 +583,347 @@ const ViewPolicies = ({
     );
 };
 
+const EditPolicyModal = ({ policy, onClose, onSave, formatDate }) => {
+    const [editPolicyData, setEditPolicyData] = useState(policy);
 
+    useEffect(() => {
+        // Ensure that date fields are formatted correctly when the policy prop changes
+        setEditPolicyData({
+            ...policy,
+            policyDate: formatDate(policy.policyDate),
+            validUntil: formatDate(policy.validUntil)
+        });
+    }, [policy, formatDate]);
+
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        if (name.startsWith('customer.')) {
+            const customerField = name.split('.')[1];
+            setEditPolicyData(prev => ({
+                ...prev,
+                customer: {
+                    ...prev.customer,
+                    [customerField]: value
+                }
+            }));
+        } else {
+            setEditPolicyData(prev => ({
+                ...prev,
+                [name]: type === 'checkbox' ? checked : value
+            }));
+        }
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave(editPolicyData);
+    };
+
+    if (!policy) return null;
+
+    return (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-6 rounded-xl shadow-xl max-w-2xl w-full relative overflow-y-auto max-h-[90vh]">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+                <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Edit Policy</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Policy Details */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3">Policy Details</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="editPolicyType" className="block text-sm font-medium text-gray-700">Policy Type</label>
+                                <select id="editPolicyType" name="policyType" value={editPolicyData.policyType} onChange={handleChange}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option>New Policy</option>
+                                    <option>Policy Payment</option>
+                                    <option>Toll</option>
+                                    <option>Assessment</option>
+                                    <option>Sticker</option>
+                                    <option>Certificate</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="editPolicyNumber" className="block text-sm font-medium text-gray-700">Policy Number</label>
+                                <input type="text" id="editPolicyNumber" name="policyNumber" value={editPolicyData.policyNumber} onChange={handleChange} required
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="editPolicyDate" className="block text-sm font-medium text-gray-700">Policy Date</label>
+                                <input type="date" id="editPolicyDate" name="policyDate" value={editPolicyData.policyDate} onChange={handleChange} required
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="editValidUntil" className="block text-sm font-medium text-gray-700">Valid Until</label>
+                                <input type="date" id="editValidUntil" name="validUntil" value={editPolicyData.validUntil} onChange={handleChange} required
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="editTotalAmount" className="block text-sm font-medium text-gray-700">Total Amount (BGN)</label>
+                                <input type="number" step="0.01" id="editTotalAmount" name="totalAmount" value={editPolicyData.totalAmount} onChange={handleChange} required
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="editCommission" className="block text-sm font-medium text-gray-700">Commission (BGN)</label>
+                                <input type="number" step="0.01" id="editCommission" name="commission" value={editPolicyData.commission} onChange={handleChange}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="editVehicleNumber" className="block text-sm font-medium text-gray-700">Vehicle Number</label>
+                                <input type="text" id="editVehicleNumber" name="vehicleNumber" value={editPolicyData.vehicleNumber} onChange={handleChange}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="editInsuranceType" className="block text-sm font-medium text-gray-700">Insurance Type</label>
+                                <input type="text" id="editInsuranceType" name="insuranceType" value={editPolicyData.insuranceType} onChange={handleChange}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <input type="checkbox" id="editPaidByCustomer" name="paidByCustomer" checked={editPolicyData.paidByCustomer} onChange={handleChange}
+                                    className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                                <label htmlFor="editPaidByCustomer" className="text-sm font-medium text-gray-700">Paid by Customer</label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <input type="checkbox" id="editPaidToInsurer" name="paidToInsurer" checked={editPolicyData.paidToInsurer} onChange={handleChange}
+                                    className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                                <label htmlFor="editPaidToInsurer" className="text-sm font-medium text-gray-700">Paid to Insurer</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Customer Information */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3">Customer Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="editFirstName" className="block text-sm font-medium text-gray-700">First Name</label>
+                                <input type="text" id="editFirstName" name="customer.firstName" value={editPolicyData.customer?.firstName || ''} onChange={handleChange} required
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="editLastName" className="block text-sm font-medium text-gray-700">Last Name</label>
+                                <input type="text" id="editLastName" name="customer.lastName" value={editPolicyData.customer?.lastName || ''} onChange={handleChange} required
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="editPhoneNumber" className="block text-sm font-medium text-gray-700">Phone Number</label>
+                                <input type="text" id="editPhoneNumber" name="customer.phoneNumber" value={editPolicyData.customer?.phoneNumber || ''} onChange={handleChange}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="editIdNumber" className="block text-sm font-medium text-gray-700">ID Number</label>
+                                <input type="text" id="editIdNumber" name="customer.idNumber" value={editPolicyData.customer?.idNumber || ''} onChange={handleChange}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label htmlFor="editAddress" className="block text-sm font-medium text-gray-700">Address</label>
+                                <input type="text" id="editAddress" name="customer.address" value={editPolicyData.customer?.address || ''} onChange={handleChange}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="editCity" className="block text-sm font-medium text-gray-700">City</label>
+                                <input type="text" id="editCity" name="customer.city" value={editPolicyData.customer?.city || ''} onChange={handleChange}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label htmlFor="editPostalCode" className="block text-sm font-medium text-gray-700">Postal Code</label>
+                                <input type="text" id="editPostalCode" name="customer.postalCode" value={editPolicyData.customer?.postalCode || ''} onChange={handleChange}
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end space-x-3 mt-6">
+                        <button type="button" onClick={onClose}
+                            className="px-5 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition duration-200">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                            className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const EditCustomerModal = ({ customer, onClose, onSave }) => {
+    const [editCustomerData, setEditCustomerData] = useState(customer);
+
+    useEffect(() => {
+        // Initialize editCustomerData when the customer prop changes
+        setEditCustomerData(customer);
+    }, [customer]);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setEditCustomerData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave(editCustomerData);
+    };
+
+    if (!customer) return null;
+
+    return (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-6 rounded-xl shadow-xl max-w-md w-full relative">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+                <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Edit Customer Details</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label htmlFor="editCustomerFirstName" className="block text-sm font-medium text-gray-700">First Name</label>
+                        <input type="text" id="editCustomerFirstName" name="firstName" value={editCustomerData.firstName || ''} onChange={handleChange} required
+                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label htmlFor="editCustomerLastName" className="block text-sm font-medium text-gray-700">Last Name</label>
+                        <input type="text" id="editCustomerLastName" name="lastName" value={editCustomerData.lastName || ''} onChange={handleChange} required
+                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label htmlFor="editCustomerPhoneNumber" className="block text-sm font-medium text-gray-700">Phone Number</label>
+                        <input type="text" id="editCustomerPhoneNumber" name="phoneNumber" value={editCustomerData.phoneNumber || ''} onChange={handleChange}
+                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label htmlFor="editCustomerIdNumber" className="block text-sm font-medium text-gray-700">ID Number (Cannot be changed)</label>
+                        <input type="text" id="editCustomerIdNumber" name="idNumber" value={editCustomerData.idNumber || ''} disabled
+                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 cursor-not-allowed" />
+                    </div>
+                    <div>
+                        <label htmlFor="editCustomerAddress" className="block text-sm font-medium text-gray-700">Address</label>
+                        <input type="text" id="editCustomerAddress" name="address" value={editCustomerData.address || ''} onChange={handleChange}
+                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label htmlFor="editCustomerCity" className="block text-sm font-medium text-gray-700">City</label>
+                        <input type="text" id="editCustomerCity" name="city" value={editCustomerData.city || ''} onChange={handleChange}
+                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label htmlFor="editCustomerPostalCode" className="block text-sm font-medium text-gray-700">Postal Code</label>
+                        <input type="text" id="editCustomerPostalCode" name="postalCode" value={editCustomerData.postalCode || ''} onChange={handleChange}
+                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+
+                    <div className="flex justify-end space-x-3 mt-6">
+                        <button type="button" onClick={onClose}
+                            className="px-5 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition duration-200">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                            className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const CustomerManagement = ({ policies, loadingPolicies, handleUpdateCustomer, setIsCustomerEditModalOpen, setSelectedCustomerForEdit }) => {
+    const uniqueCustomers = policies.reduce((acc, policy) => {
+        if (policy.customer && policy.customer.idNumber) {
+            if (!acc[policy.customer.idNumber]) {
+                acc[policy.customer.idNumber] = {
+                    idNumber: policy.customer.idNumber,
+                    firstName: policy.customer.firstName,
+                    lastName: policy.customer.lastName,
+                    phoneNumber: policy.customer.phoneNumber,
+                    address: policy.customer.address,
+                    city: policy.customer.city,
+                    postalCode: policy.customer.postalCode,
+                    policiesCount: 0,
+                    totalPolicyValue: 0,
+                    associatedPolicies: []
+                };
+            }
+            acc[policy.customer.idNumber].policiesCount++;
+            acc[policy.customer.idNumber].totalPolicyValue += (parseFloat(policy.totalAmount) || 0);
+            acc[policy.customer.idNumber].associatedPolicies.push({
+                id: policy.id,
+                policyNumber: policy.policyNumber,
+                policyType: policy.policyType,
+                totalAmount: policy.totalAmount,
+                policyDate: policy.policyDate
+            });
+        }
+        return acc;
+    }, {});
+
+    const customersList = Object.values(uniqueCustomers);
+
+    const handleEditCustomerClick = (customer) => {
+        setSelectedCustomerForEdit(customer);
+        setIsCustomerEditModalOpen(true);
+    };
+
+    return (
+        <div className="p-5 bg-white rounded-xl shadow-sm space-y-6">
+            <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Customer Management</h2>
+            {loadingPolicies ? (
+                <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
+                    <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Loading customer data...
+                </div>
+            ) : customersList.length === 0 ? (
+                <div className="text-center text-gray-600 text-lg">No customers found. Add policies to populate customer data.</div>
+            ) : (
+                <div className="overflow-x-auto rounded-lg shadow-sm">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Number</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policies</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Policy Value</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {customersList.map((customer, index) => (
+                                <tr key={customer.idNumber || index} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{customer.firstName} {customer.lastName}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.phoneNumber}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.idNumber}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.city}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.policiesCount}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">BGN {customer.totalPolicyValue.toFixed(2)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button
+                                            onClick={() => handleEditCustomerClick(customer)}
+                                            className="text-blue-600 hover:text-blue-900 p-1 rounded-md bg-blue-50 hover:bg-blue-100 transition"
+                                        >
+                                            Edit
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+            {/* The modal (EditCustomerModal) is rendered in App component, and its state is managed by App */}
+        </div>
+    );
+};
+
+
+// --- MAIN APP COMPONENT ---
 const App = () => {
     const [user, setUser] = useState(null);
     const [userId, setUserId] = useState(null);
@@ -994,7 +1330,6 @@ const App = () => {
         }
     };
 
-
     // Helper function to format dates as YYYY-MM-DD
     const formatDate = useCallback((dateString) => {
         if (!dateString) return '';
@@ -1029,6 +1364,8 @@ const App = () => {
                 `}
             </style>
             {/* The Tailwind CSS CDN script tag is typically placed in public/index.html or as a PostCSS plugin */}
+            {/* If you're using Create React App or a similar setup, you might already have Tailwind configured */}
+            {/* If not, ensure this CDN link is in your public/index.html file or you've correctly set up Tailwind CLI/PostCSS */}
             {/* <script src="https://cdn.tailwindcss.com"></script> */}
 
             <div className="flex flex-col lg:flex-row min-h-screen">
@@ -1111,6 +1448,7 @@ const App = () => {
                             user ? (
                                 <>
                                     {currentPage === 'dashboard' && <Dashboard policies={policies} loadingPolicies={loadingPolicies} />}
+
                                     {currentPage === 'addPolicy' && (
                                         <div className="p-5 bg-white rounded-xl shadow-sm space-y-6">
                                             <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add New Insurance Policy</h2>
@@ -1227,6 +1565,7 @@ const App = () => {
                                             </form>
                                         </div>
                                     )}
+
                                     {currentPage === 'viewPolicies' && (
                                         <ViewPolicies
                                             policies={policies}
@@ -1243,9 +1582,9 @@ const App = () => {
                                             sortColumn={sortColumn} setSortColumn={setSortColumn}
                                             sortDirection={sortDirection} setSortDirection={setSortDirection}
                                             expandedPolicyId={expandedPolicyId} setExpandedPolicyId={setExpandedPolicyId}
-                                            // Passing down the functions needed by ViewPolicies for its actions and child components
                                             handleDeletePolicy={handleDeletePolicy}
-                                            handleEditPolicyClick={(policy) => { // Define this handler here to set state in App
+                                            // Pass functions needed by ViewPolicies for its actions and modals
+                                            handleEditPolicyClick={(policy) => { // Define this handler to update App's state
                                                 setSelectedPolicyForEdit(policy);
                                                 setIsPolicyEditModalOpen(true);
                                             }}
@@ -1254,6 +1593,7 @@ const App = () => {
                                             userId={userId}
                                         />
                                     )}
+
                                     {isPolicyEditModalOpen && (
                                         <EditPolicyModal
                                             policy={selectedPolicyForEdit}
@@ -1262,7 +1602,9 @@ const App = () => {
                                             formatDate={formatDate}
                                         />
                                     )}
+
                                     {currentPage === 'financialReports' && <FinancialReports policies={policies} paymentsExpenses={paymentsExpenses} loadingPolicies={loadingPolicies} loadingPaymentsExpenses={loadingPaymentsExpenses} formatDate={formatDate} />}
+
                                     {currentPage === 'addPaymentExpense' && (
                                         <AddPaymentExpenseForm
                                             policies={policies}
@@ -1274,6 +1616,7 @@ const App = () => {
                                             handleAddPaymentExpense={handleAddPaymentExpense}
                                         />
                                     )}
+
                                     {currentPage === 'customerManagement' && (
                                         <CustomerManagement
                                             policies={policies}
@@ -1283,6 +1626,7 @@ const App = () => {
                                             setSelectedCustomerForEdit={setSelectedCustomerForEdit}
                                         />
                                     )}
+
                                     {isCustomerEditModalOpen && (
                                         <EditCustomerModal
                                             customer={selectedCustomerForEdit}
@@ -1292,6 +1636,7 @@ const App = () => {
                                     )}
                                 </>
                             ) : (
+                                // Login/Register form when not authenticated
                                 <div className="flex items-center justify-center min-h-[calc(100vh-120px)] p-4">
                                     <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
                                         <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">
@@ -1301,7 +1646,7 @@ const App = () => {
                                             <div className={`p-3 mb-4 rounded-md text-sm font-medium ${authMessage.includes('Error') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
                                                 {authMessage}
                                             </div>
-                                                                                )}
+                                        )}
                                         <form onSubmit={handleAuth} className="space-y-4">
                                             <div>
                                                 <label htmlFor="email" className="sr-only">Email</label>
@@ -1328,6 +1673,7 @@ const App = () => {
                                 </div>
                             )
                         ) : (
+                            // Initializing application loader
                             <div className="flex justify-center items-center h-full text-blue-600 text-xl font-semibold">
                                 <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
