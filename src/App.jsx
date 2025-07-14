@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// Import deleteDoc along with other Firestore functions
-import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './firebase.js';
+import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './Firebase.js';
 import { collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
-// Import your logo image
 import Logo from './logog.png'; // Make sure the filename matches exactly: logog.png
 
 const appId = auth.app.options.projectId;
@@ -25,6 +23,69 @@ const Modal = ({ message, onClose }) => {
         </div>
     );
 };
+
+// NEW: Extracted AddPaymentExpenseForm component for better performance and focus handling
+const AddPaymentExpenseForm = ({
+    policies,
+    paymentExpenseType, setPaymentExpenseType,
+    paymentExpenseDate, setPaymentExpenseDate,
+    paymentExpenseAmount, setPaymentExpenseAmount,
+    paymentExpenseReason, setPaymentExpenseReason,
+    selectedPolicyForPayment, setSelectedPolicyForPayment,
+    handleAddPaymentExpense
+}) => {
+    return (
+        <div className="p-5 bg-white rounded-xl shadow-sm space-y-4 max-w-screen-lg mx-auto">
+            <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
+            <form onSubmit={handleAddPaymentExpense} className="space-y-6">
+                <div className="border border-gray-200 rounded-lg p-5">
+                    <h3 className="text-xl font-semibold text-gray-800 mb-4">Transaction Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="paymentExpenseType" className="block text-sm font-medium text-gray-700">Type <span className="text-red-500">*</span></label>
+                            <select id="paymentExpenseType" value={paymentExpenseType} onChange={(e) => setPaymentExpenseType(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option>Payment</option>
+                                <option>Expense</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="paymentExpenseDate" className="block text-sm font-medium text-gray-700">Date <span className="text-red-500">*</span></label>
+                            <input type="date" id="paymentExpenseDate" value={paymentExpenseDate} onChange={(e) => setPaymentExpenseDate(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="paymentExpenseAmount" className="block text-sm font-medium text-gray-700">Amount (BGN) <span className="text-red-500">*</span></label>
+                            <input type="number" step="0.01" id="paymentExpenseAmount" placeholder="Amount" value={paymentExpenseAmount} onChange={(e) => setPaymentExpenseAmount(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="paymentExpenseReason" className="block text-sm font-medium text-gray-700">Reason</label>
+                            <textarea id="paymentExpenseReason" placeholder="Reason (e.g., policy renewal, office supplies)" rows="3" value={paymentExpenseReason} onChange={(e) => setPaymentExpenseReason(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="selectedPolicyForPayment" className="block text-sm font-medium text-gray-700">Link to Policy (Optional):</label>
+                            <select id="selectedPolicyForPayment" value={selectedPolicyForPayment} onChange={(e) => setSelectedPolicyForPayment(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- No Policy --</option>
+                                {policies.map(policy => (
+                                    <option key={policy.id} value={policy.id}>
+                                        {policy.policyNumber} - {policy.customer?.firstName} {policy.customer?.lastName} ({policy.policyType})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-200">
+                    Add {paymentExpenseType}
+                </button>
+            </form>
+        </div>
+    );
+};
+
 
 // Main App component
 const App = () => {
@@ -495,59 +556,6 @@ const App = () => {
         );
     };
 
-    // Add Payment / Add Expense Component
-    const AddPaymentExpense = () => (
-        // Adjusted padding and max-width here
-        <div className="p-5 bg-white rounded-xl shadow-sm space-y-4 max-w-screen-lg mx-auto">
-            <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
-            <form onSubmit={handleAddPaymentExpense} className="space-y-6">
-                <div className="border border-gray-200 rounded-lg p-5">
-                    <h3 className="text-xl font-semibold text-gray-800 mb-4">Transaction Details</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label htmlFor="paymentExpenseType" className="block text-sm font-medium text-gray-700">Type <span className="text-red-500">*</span></label>
-                            <select id="paymentExpenseType" value={paymentExpenseType} onChange={(e) => setPaymentExpenseType(e.target.value)}
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                <option>Payment</option>
-                                <option>Expense</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="paymentExpenseDate" className="block text-sm font-medium text-gray-700">Date <span className="text-red-500">*</span></label>
-                            <input type="date" id="paymentExpenseDate" value={paymentExpenseDate} onChange={(e) => setPaymentExpenseDate(e.target.value)} required
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label htmlFor="paymentExpenseAmount" className="block text-sm font-medium text-gray-700">Amount (BGN) <span className="text-red-500">*</span></label>
-                            <input type="number" step="0.01" id="paymentExpenseAmount" placeholder="Amount" value={paymentExpenseAmount} onChange={(e) => setPaymentExpenseAmount(e.target.value)} required
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label htmlFor="paymentExpenseReason" className="block text-sm font-medium text-gray-700">Reason</label>
-                            <textarea id="paymentExpenseReason" placeholder="Reason (e.g., policy renewal, office supplies)" rows="3" value={paymentExpenseReason} onChange={(e) => setPaymentExpenseReason(e.target.value)}
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                        </div>
-                        <div className="md:col-span-2">
-                            <label htmlFor="selectedPolicyForPayment" className="block text-sm font-medium text-gray-700">Link to Policy (Optional):</label>
-                            <select id="selectedPolicyForPayment" value={selectedPolicyForPayment} onChange={(e) => setSelectedPolicyForPayment(e.target.value)}
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- No Policy --</option>
-                                {policies.map(policy => (
-                                    <option key={policy.id} value={policy.id}>
-                                        {policy.policyNumber} - {policy.customer?.firstName} {policy.customer?.lastName} ({policy.policyType})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-200">
-                    Add {paymentExpenseType}
-                </button>
-            </form>
-        </div>
-    );
-
     // Financial Reports Component
     const FinancialReports = () => {
         const [startDate, setStartDate] = useState('');
@@ -583,8 +591,13 @@ const App = () => {
         const totalCommission = filteredPoliciesReport.reduce((acc, policy) => acc + (parseFloat(policy.commission) || 0), 0);
         const totalExpenses = filteredPaymentsExpenses.filter(item => item.type === 'Expense').reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
 
+        // NEW CALCULATION: Commission only for policies NOT paid to insurer
+        const commissionNotPaidToInsurer = filteredPoliciesReport.reduce((acc, policy) =>
+            acc + (policy.paidToInsurer ? 0 : (parseFloat(policy.commission) || 0)), 0
+        );
+        // Corrected Amount Due to Insurer calculation
         const totalUnpaidToInsurer = filteredPoliciesReport.reduce((acc, policy) => acc + (policy.paidToInsurer ? 0 : (parseFloat(policy.totalAmount) || 0)), 0);
-        const amountDueToInsurer = totalUnpaidToInsurer - totalCommission;
+        const amountDueToInsurer = totalUnpaidToInsurer - commissionNotPaidToInsurer;
 
         return (
             // Adjusted padding and max-width here
@@ -1468,7 +1481,17 @@ const App = () => {
             case 'financialReports':
                 return <FinancialReports />;
             case 'addPaymentExpense':
-                return <AddPaymentExpense />;
+                return (
+                    <AddPaymentExpenseForm
+                        policies={policies} // Pass policies for the dropdown
+                        paymentExpenseType={paymentExpenseType} setPaymentExpenseType={setPaymentExpenseType}
+                        paymentExpenseDate={paymentExpenseDate} setPaymentExpenseDate={setPaymentExpenseDate}
+                        paymentExpenseAmount={paymentExpenseAmount} setPaymentExpenseAmount={setPaymentExpenseAmount}
+                        paymentExpenseReason={paymentExpenseReason} setPaymentExpenseReason={setPaymentExpenseReason}
+                        selectedPolicyForPayment={selectedPolicyForPayment} setSelectedPolicyForPayment={setSelectedPolicyForPayment}
+                        handleAddPaymentExpense={handleAddPaymentExpense} // Pass the handler
+                    />
+                );
             case 'customerManagement':
                 return <CustomerManagement />;
             default:
@@ -1482,8 +1505,9 @@ const App = () => {
         handleAddPolicy, handleUpdatePolicy, handleUpdateCustomer, handleDeletePolicy, handleDeletePaymentExpense, userId, isAuthReady,
         policyType, policyDate, validUntil, totalAmount, commission, policyNumber, vehicleNumber, insuranceType,
         paidByCustomer, paidToInsurer, firstName, lastName, phoneNumber, idNumber, address, city, postalCode,
-        paymentExpenseType, paymentExpenseDate, paymentExpenseAmount, paymentExpenseReason, selectedPolicyForPayment,
-        handleAddPaymentExpense
+        // Only include states/handlers that are actually used by the current 'currentPage' or its direct child components.
+        // For 'addPaymentExpense' page, it now uses the props passed to AddPaymentExpenseForm
+        paymentExpenseType, paymentExpenseDate, paymentExpenseAmount, paymentExpenseReason, selectedPolicyForPayment, handleAddPaymentExpense
     ]);
 
 
@@ -1593,7 +1617,7 @@ const App = () => {
                         {renderPage()}
                     </main>
                 </div>
-                {/* Fixed the Modal onClose to clear the message as well */}
+                {/* Modal fixed to clear message on close as well */}
                 <Modal message={modalMessage} onClose={() => { setShowModal(false); setModalMessage(''); }} />
             </div>
         </div>
