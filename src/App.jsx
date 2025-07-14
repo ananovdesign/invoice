@@ -35,7 +35,7 @@ const AddPaymentExpenseForm = ({
     handleAddPaymentExpense
 }) => {
     return (
-        <div className="p-5 bg-white rounded-xl shadow-sm space-y-4"> {/* Removed max-w-screen-lg and mx-auto */}
+        <div className="p-5 bg-white rounded-xl shadow-sm space-y-4">
             <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
             <form onSubmit={handleAddPaymentExpense} className="space-y-6">
                 <div className="border border-gray-200 rounded-lg p-5">
@@ -653,6 +653,7 @@ const EditCustomerModal = ({ customer, onClose, onSave }) => {
     );
 };
 
+
 const App = () => {
     const [user, setUser] = useState(null);
     const [userId, setUserId] = useState(null);
@@ -683,7 +684,6 @@ const App = () => {
     const [filterPolicyNumber, setFilterPolicyNumber] = useState('');
     const [filterPaidByCustomer, setFilterPaidByCustomer] = useState('all');
     const [filterPaidToInsurer, setFilterPaidToInsurer] = useState('all');
-    // NEW: States for Valid Until date filtering in View Policies
     const [filterValidUntilStartDate, setFilterValidUntilStartDate] = useState('');
     const [filterValidUntilEndDate, setFilterValidUntilEndDate] = useState('');
 
@@ -1068,282 +1068,6 @@ const App = () => {
         return date.toISOString().split('T')[0];
     }, []); // Memoize this function since it's passed as a prop
 
-    // View Policies Component
-    const ViewPolicies = ({
-        policies,
-        paymentsExpenses,
-        loadingPolicies,
-        loadingPaymentsExpenses,
-        filterPolicyType, setFilterPolicyType,
-        filterCustomerName, setFilterCustomerName,
-        filterPolicyNumber, setFilterPolicyNumber,
-        filterPaidByCustomer, setFilterPaidByCustomer,
-        filterPaidToInsurer, setFilterPaidToInsurer,
-        filterValidUntilStartDate, setFilterValidUntilStartDate,
-        filterValidUntilEndDate, setFilterValidUntilEndDate,
-        sortColumn, setSortColumn,
-        sortDirection, setSortDirection,
-        isPolicyEditModalOpen, setIsPolicyEditModalOpen,
-        selectedPolicyForEdit, setSelectedPolicyForEdit,
-        expandedPolicyId, setExpandedPolicyId,
-        handleDeletePolicy,
-        handleEditPolicyClick, // New prop
-        handleDeletePaymentExpense, // New prop
-        formatDate // New prop
-    }) => {
-        const filteredAndSortedPolicies = policies
-            .filter(policy => {
-                const matchesPolicyType = filterPolicyType === '' || policy.policyType.toLowerCase().includes(filterPolicyType.toLowerCase());
-                const matchesCustomerName = filterCustomerName === '' ||
-                    (policy.customer?.firstName?.toLowerCase().includes(filterCustomerName.toLowerCase()) ||
-                        policy.customer?.lastName?.toLowerCase().includes(filterCustomerName.toLowerCase()));
-                const matchesPolicyNumber = filterPolicyNumber === '' || policy.policyNumber.toLowerCase().includes(filterPolicyNumber.toLowerCase());
-                const matchesPaidByCustomer = filterPaidByCustomer === 'all' || policy.paidByCustomer === (filterPaidByCustomer === 'yes');
-                const matchesPaidToInsurer = filterPaidToInsurer === 'all' || policy.paidToInsurer === (filterPaidToInsurer === 'yes');
-
-                let matchesValidUntilDate = true;
-                if (filterValidUntilStartDate && policy.validUntil) {
-                    const start = new Date(filterValidUntilStartDate);
-                    start.setHours(0, 0, 0, 0);
-                    const policyValidUntil = new Date(policy.validUntil);
-                    matchesValidUntilDate = matchesValidUntilDate && policyValidUntil >= start;
-                }
-                if (filterValidUntilEndDate && policy.validUntil) {
-                    const end = new Date(filterValidUntilEndDate);
-                    end.setHours(23, 59, 59, 999);
-                    const policyValidUntil = new Date(policy.validUntil);
-                    matchesValidUntilDate = matchesValidUntilDate && policyValidUntil <= end;
-                }
-
-                return matchesPolicyType && matchesCustomerName && matchesPolicyNumber && matchesPaidByCustomer && matchesPaidToInsurer && matchesValidUntilDate;
-            })
-            .sort((a, b) => {
-                let valA, valB;
-                if (sortColumn === 'customer') {
-                    valA = `${a.customer?.firstName || ''} ${a.customer?.lastName || ''}`.toLowerCase();
-                    valB = `${b.customer?.firstName || ''} ${b.customer?.lastName || ''}`.toLowerCase();
-                } else if (sortColumn === 'createdAt' || sortColumn === 'policyDate' || sortColumn === 'validUntil') {
-                    valA = a[sortColumn] ? new Date(a[sortColumn]).getTime() : 0;
-                    valB = b[sortColumn] ? new Date(b[sortColumn]).getTime() : 0;
-                }
-                else {
-                    valA = typeof a[sortColumn] === 'string' ? a[sortColumn].toLowerCase() : a[sortColumn];
-                    valB = typeof b[sortColumn] === 'string' ? b[sortColumn].toLowerCase() : b[sortColumn];
-                }
-
-                if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-                if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
-                return 0;
-            });
-
-        const handleSort = (column) => {
-            if (sortColumn === column) {
-                setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-            } else {
-                setSortColumn(column);
-                setSortDirection('asc'); // Default to ascending when changing column
-            }
-        };
-
-        const getSortIndicator = (column) => {
-            if (sortColumn === column) {
-                return sortDirection === 'asc' ? ' ▲' : ' ▼';
-            }
-            return '';
-        };
-
-        // Function to toggle expanded policy row
-        const toggleExpandedPolicy = (policyId) => {
-            setExpandedPolicyId(prevId => (prevId === policyId ? null : policyId));
-        };
-
-
-        return (
-            <div className="p-5 bg-white rounded-xl shadow-sm">
-                <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">View Insurance Policies</h2>
-                {userId && (
-                    <p className="text-sm text-gray-500 text-center mb-4">
-                        User ID: <span className="font-mono bg-gray-100 p-1 rounded text-gray-700">{userId}</span>
-                    </p>
-                )}
-
-                {/* Filters */}
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label htmlFor="filterPolicyType" className="block text-sm font-medium text-gray-700">Policy Type:</label>
-                        <input type="text" id="filterPolicyType" value={filterPolicyType} onChange={(e) => setFilterPolicyType(e.target.value)}
-                            placeholder="Filter by type..." className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
-                    </div>
-                    <div>
-                        <label htmlFor="filterCustomerName" className="block text-sm font-medium text-gray-700">Customer Name:</label>
-                        <input type="text" id="filterCustomerName" value={filterCustomerName} onChange={(e) => setFilterCustomerName(e.target.value)}
-                            placeholder="Filter by customer..." className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
-                    </div>
-                    <div>
-                        <label htmlFor="filterPolicyNumber" className="block text-sm font-medium text-gray-700">Policy Number:</label>
-                        <input type="text" id="filterPolicyNumber" value={filterPolicyNumber} onChange={(e) => setFilterPolicyNumber(e.target.value)}
-                            placeholder="Filter by policy #..." className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
-                    </div>
-                    <div>
-                        <label htmlFor="filterPaidByCustomer" className="block text-sm font-medium text-gray-700">Paid by Customer:</label>
-                        <select id="filterPaidByCustomer" value={filterPaidByCustomer} onChange={(e) => setFilterPaidByCustomer(e.target.value)}
-                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md">
-                            <option value="all">All</option>
-                            <option value="yes">Yes</option>
-                            <option value="no">No</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="filterPaidToInsurer" className="block text-sm font-medium text-gray-700">Paid to Insurer:</label>
-                        <select id="filterPaidToInsurer" value={filterPaidToInsurer} onChange={(e) => setFilterPaidToInsurer(e.target.value)}
-                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md">
-                            <option value="all">All</option>
-                            <option value="yes">Yes</option>
-                            <option value="no">No</option>
-                        </select>
-                    </div>
-                    {/* NEW: Valid Until date filters */}
-                    <div>
-                        <label htmlFor="filterValidUntilStartDate" className="block text-sm font-medium text-gray-700">Valid Until From:</label>
-                        <input type="date" id="filterValidUntilStartDate" value={filterValidUntilStartDate} onChange={(e) => setFilterValidUntilStartDate(e.target.value)}
-                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
-                    </div>
-                    <div>
-                        <label htmlFor="filterValidUntilEndDate" className="block text-sm font-medium text-gray-700">Valid Until To:</label>
-                        <input type="date" id="filterValidUntilEndDate" value={filterValidUntilEndDate} onChange={(e) => setFilterValidUntilEndDate(e.target.value)}
-                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
-                    </div>
-                </div>
-
-                {loadingPolicies || loadingPaymentsExpenses ? (
-                    <div className="flex justify-center items-center h-48 text-indigo-600 text-xl font-semibold">
-                        <svg className="animate-spin -ml-1 mr-3 h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Loading policies and payments/expenses...
-                    </div>
-                ) : filteredAndSortedPolicies.length === 0 ? (
-                    <div className="text-center text-gray-600 text-lg">No policies found matching your criteria.</div>
-                ) : (
-                    <div className="overflow-x-auto rounded-lg shadow-sm">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>{/* For expand button */}
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('policyNumber')}>
-                                        Policy #{getSortIndicator('policyNumber')}
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('customer')}>
-                                        Customer{getSortIndicator('customer')}
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('policyType')}>
-                                        Type{getSortIndicator('policyType')}
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('totalAmount')}>
-                                        Amount{getSortIndicator('totalAmount')}
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('policyDate')}>
-                                        Date{getSortIndicator('policyDate')}
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('validUntil')}>
-                                        Valid Until{getSortIndicator('validUntil')}
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid by Customer</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid to Insurer</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {filteredAndSortedPolicies.map((policy) => (
-                                    <React.Fragment key={policy.id}>
-                                        <tr className="hover:bg-gray-50">
-                                            <td className="px-2 py-4 text-center">
-                                                <button onClick={() => toggleExpandedPolicy(policy.id)} className="text-gray-500 hover:text-gray-800 focus:outline-none">
-                                                    {expandedPolicyId === policy.id ? '▼' : '►'}
-                                                </button>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{policy.policyNumber}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{policy.customer?.firstName} {policy.customer?.lastName}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{policy.policyType}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">BGN {policy.totalAmount?.toFixed(2)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDate(policy.policyDate)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDate(policy.validUntil)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                {policy.paidByCustomer ? (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Yes</span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">No</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                {policy.paidToInsurer ? (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Yes</span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">No</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button onClick={() => handleEditPolicyClick(policy)} className="text-indigo-600 hover:text-indigo-900 p-1 rounded-md bg-indigo-50 hover:bg-indigo-100 transition mr-2">Edit</button>
-                                                <button onClick={() => handleDeletePolicy(policy.id, policy.policyNumber)} className="text-red-600 hover:text-red-900 p-1 rounded-md bg-red-50 hover:bg-red-100 transition">Delete</button>
-                                            </td>
-                                        </tr>
-                                        {/* Expanded row for payments/expenses */}
-                                        {expandedPolicyId === policy.id && (
-                                            <tr>
-                                                <td colSpan="11" className="p-4 bg-gray-50 border-t border-gray-200">
-                                                    <div className="ml-8">
-                                                        <h4 className="text-md font-semibold text-gray-800 mb-2">Payments/Expenses for Policy {policy.policyNumber}</h4>
-                                                        {loadingPaymentsExpenses ? (
-                                                            <div className="text-gray-600 text-sm">Loading linked payments/expenses...</div>
-                                                        ) : (
-                                                            paymentsExpenses.filter(item => item.policyId === policy.id).length > 0 ? (
-                                                                <div className="overflow-x-auto">
-                                                                    <table className="min-w-full divide-y divide-gray-200">
-                                                                        <thead className="bg-gray-100">
-                                                                            <tr>
-                                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
-                                                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th> {/* New column for delete button */}
-                                                                            </tr>
-                                                                        </thead>
-                                                                        <tbody className="bg-white divide-y divide-gray-200">
-                                                                            {paymentsExpenses
-                                                                                .filter(item => item.policyId === policy.id)
-                                                                                .sort((a, b) => (b.createdAt?.toDate() || new Date(b.date)).getTime() - (a.createdAt?.toDate() || new Date(a.date)).getTime())
-                                                                                .map(item => (
-                                                                                    <tr key={item.id}>
-                                                                                        <td className="px-4 py-2 whitespace-nowrap text-sm">{item.type}</td>
-                                                                                        <td className="px-4 py-2 whitespace-nowrap text-sm">{formatDate(item.date)}</td>
-                                                                                        <td className="px-4 py-2 whitespace-nowrap text-sm">BGN {item.amount?.toFixed(2)}</td>
-                                                                                        <td className="px-4 py-2 whitespace-nowrap text-sm">{item.reason || 'N/A'}</td>
-                                                                                        <td className="px-4 py-2 whitespace-nowrap text-right text-sm">
-                                                                                            <button onClick={() => handleDeletePaymentExpense(item.id, item.type, item.amount)} className="text-red-600 hover:text-red-900 p-1 rounded-md bg-red-50 hover:bg-red-100 transition">Delete</button>
-                                                                                        </td>
-                                                                                    </tr>
-                                                                                ))}
-                                                                        </tbody>
-                                                                    </table>
-                                                                </div>
-                                                            ) : (
-                                                                <p className="text-sm text-gray-600">No linked payments or expenses for this policy.</p>
-                                                            )
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </React.Fragment>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-        );
-    };
 
     return (
         <div className="min-h-screen bg-[#F0F2F5] font-sans text-gray-800">
@@ -1583,13 +1307,15 @@ const App = () => {
                                             filterValidUntilEndDate={filterValidUntilEndDate} setFilterValidUntilEndDate={setFilterValidUntilEndDate}
                                             sortColumn={sortColumn} setSortColumn={setSortColumn}
                                             sortDirection={sortDirection} setSortDirection={setSortDirection}
+                                            // Pass states/functions related to modals and actions
                                             isPolicyEditModalOpen={isPolicyEditModalOpen} setIsPolicyEditModalOpen={setIsPolicyEditModalOpen}
                                             selectedPolicyForEdit={selectedPolicyForEdit} setSelectedPolicyForEdit={setSelectedPolicyForEdit}
                                             expandedPolicyId={expandedPolicyId} setExpandedPolicyId={setExpandedPolicyId}
                                             handleDeletePolicy={handleDeletePolicy}
-                                            handleEditPolicyClick={handleEditPolicyClick}
+                                            handleEditPolicyClick={() => { /* This function is already defined in ViewPolicies, so no need to pass it from App */ }} // Corrected: This function is defined within ViewPolicies.
                                             handleDeletePaymentExpense={handleDeletePaymentExpense}
                                             formatDate={formatDate}
+                                            userId={userId} // Pass userId to ViewPolicies if needed for display purposes
                                         />
                                     )}
                                     {isPolicyEditModalOpen && (
