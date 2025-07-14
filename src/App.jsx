@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { auth, db, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from './firebase.js';
 import { collection, addDoc, onSnapshot, query, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
-import Logo from './logog.png'; // Make sure the filename matches exactly: logogog.png
+import Logo from './logog.png'; // Make sure the filename matches exactly: logog.png
 
 const appId = auth.app.options.projectId;
 
@@ -29,7 +29,7 @@ const Modal = ({ message, onClose }) => {
 // ============================================================================
 // DASHBOARD COMPONENT
 // ============================================================================
-const Dashboard = ({ policies, loadingPolicies }) => {
+const Dashboard = React.memo(({ policies, loadingPolicies }) => {
     const totalPolicies = policies.length;
     const totalPolicyValue = policies.reduce((acc, policy) => acc + (parseFloat(policy.totalAmount) || 0), 0);
     const totalCommission = policies.reduce((acc, policy) => acc + (parseFloat(policy.commission) || 0), 0);
@@ -43,7 +43,7 @@ const Dashboard = ({ policies, loadingPolicies }) => {
     }).length;
 
     return (
-        <div className="p-5 bg-white rounded-xl shadow-sm space-y-6"> {/* Removed max-w-screen-lg and mx-auto */}
+        <div className="p-5 bg-white rounded-xl shadow-sm space-y-6"> {/* Now fills available width */}
             <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Dashboard Overview</h2>
             {loadingPolicies ? (
                 <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
@@ -83,76 +83,141 @@ const Dashboard = ({ policies, loadingPolicies }) => {
             )}
         </div>
     );
-};
+});
 
 // ============================================================================
-// ADD PAYMENT / EXPENSE FORM COMPONENT (Already extracted)
+// ADD POLICY COMPONENT
 // ============================================================================
-const AddPaymentExpenseForm = ({
-    policies,
-    paymentExpenseType, setPaymentExpenseType,
-    paymentExpenseDate, setPaymentExpenseDate,
-    paymentExpenseAmount, setPaymentExpenseAmount,
-    paymentExpenseReason, setPaymentExpenseReason,
-    selectedPolicyForPayment, setSelectedPolicyForPayment,
-    handleAddPaymentExpense
+const AddPolicy = React.memo(({
+    policyType, setPolicyType, policyDate, setPolicyDate, validUntil, setValidUntil,
+    totalAmount, setTotalAmount, commission, setCommission, policyNumber, setPolicyNumber,
+    vehicleNumber, setVehicleNumber, insuranceType, setInsuranceType, paidByCustomer, setPaidByCustomer,
+    paidToInsurer, setPaidToInsurer, firstName, setFirstName, lastName, setLastName,
+    phoneNumber, setPhoneNumber, idNumber, setIdNumber, address, setAddress, city, setCity,
+    postalCode, setPostalCode, handleAddPolicy
 }) => {
     return (
-        <div className="p-5 bg-white rounded-xl shadow-sm space-y-4"> {/* Removed max-w-screen-lg and mx-auto */}
-            <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add Payment / Add Expense</h2>
-            <form onSubmit={handleAddPaymentExpense} className="space-y-6">
+        <div className="p-5 bg-white rounded-xl shadow-sm space-y-6"> {/* Fills available width */}
+            <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add New Insurance Policy</h2>
+            <form onSubmit={handleAddPolicy} className="space-y-6">
                 <div className="border border-gray-200 rounded-lg p-5">
-                    <h3 className="text-xl font-semibold text-gray-800 mb-4">Transaction Details</h3>
+                    <h3 className="text-xl font-semibold text-gray-800 mb-4">Policy Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label htmlFor="paymentExpenseType" className="block text-sm font-medium text-gray-700">Type <span className="text-red-500">*</span></label>
-                            <select id="paymentExpenseType" value={paymentExpenseType} onChange={(e) => setPaymentExpenseType(e.target.value)}
+                            <label htmlFor="policyType" className="block text-sm font-medium text-gray-700">Policy Type</label>
+                            <select id="policyType" value={policyType} onChange={(e) => setPolicyType(e.target.value)}
                                 className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                <option>Payment</option>
-                                <option>Expense</option>
+                                <option>New Policy</option>
+                                <option>Policy Payment</option>
+                                <option>Toll</option>
+                                <option>Assessment</option>
+                                <option>Sticker</option>
+                                <option>Certificate</option>
                             </select>
                         </div>
                         <div>
-                            <label htmlFor="paymentExpenseDate" className="block text-sm font-medium text-gray-700">Date <span className="text-red-500">*</span></label>
-                            <input type="date" id="paymentExpenseDate" value={paymentExpenseDate} onChange={(e) => setPaymentExpenseDate(e.target.value)} required
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                            <label htmlFor="policyNumber" className="block text-sm font-medium text-gray-700">Policy Number <span className="text-red-500">*</span></label>
+                            <input type="text" id="policyNumber" value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                         </div>
-                        <div className="md:col-span-2">
-                            <label htmlFor="paymentExpenseAmount" className="block text-sm font-medium text-gray-700">Amount (BGN) <span className="text-red-500">*</span></label>
-                            <input type="number" step="0.01" id="paymentExpenseAmount" placeholder="Amount" value={paymentExpenseAmount} onChange={(e) => setPaymentExpenseAmount(e.target.value)} required
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                        <div>
+                            <label htmlFor="policyDate" className="block text-sm font-medium text-gray-700">Policy Date <span className="text-red-500">*</span></label>
+                            <input type="date" id="policyDate" value={policyDate} onChange={(e) => setPolicyDate(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                         </div>
-                        <div className="md:col-span-2">
-                            <label htmlFor="paymentExpenseReason" className="block text-sm font-medium text-gray-700">Reason</label>
-                            <textarea id="paymentExpenseReason" placeholder="Reason (e.g., policy renewal, office supplies)" rows="3" value={paymentExpenseReason} onChange={(e) => setPaymentExpenseReason(e.target.value)}
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        <div>
+                            <label htmlFor="validUntil" className="block text-sm font-medium text-gray-700">Valid Until <span className="text-red-500">*</span></label>
+                            <input type="date" id="validUntil" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                         </div>
-                        <div className="md:col-span-2">
-                            <label htmlFor="selectedPolicyForPayment" className="block text-sm font-medium text-gray-700">Link to Policy (Optional):</label>
-                            <select id="selectedPolicyForPayment" value={selectedPolicyForPayment} onChange={(e) => setSelectedPolicyForPayment(e.target.value)}
-                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- No Policy --</option>
-                                {policies.map(policy => (
-                                    <option key={policy.id} value={policy.id}>
-                                        {policy.policyNumber} - {policy.customer?.firstName} {policy.customer?.lastName} ({policy.policyType})
-                                    </option>
-                                ))}
-                            </select>
+                        <div>
+                            <label htmlFor="totalAmount" className="block text-sm font-medium text-gray-700">Total Amount (BGN) <span className="text-red-500">*</span></label>
+                            <input type="number" step="0.01" id="totalAmount" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label htmlFor="commission" className="block text-sm font-medium text-gray-700">Commission (BGN)</label>
+                            <input type="number" step="0.01" id="commission" value={commission} onChange={(e) => setCommission(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label htmlFor="vehicleNumber" className="block text-sm font-medium text-gray-700">Vehicle Number</label>
+                            <input type="text" id="vehicleNumber" value={vehicleNumber} onChange={(e) => setVehicleNumber(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label htmlFor="insuranceType" className="block text-sm font-medium text-gray-700">Insurance Type</label>
+                            <input type="text" id="insuranceType" value={insuranceType} onChange={(e) => setInsuranceType(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <input type="checkbox" id="paidByCustomer" checked={paidByCustomer} onChange={(e) => setPaidByCustomer(e.target.checked)}
+                                className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                            <label htmlFor="paidByCustomer" className="text-sm font-medium text-gray-700">Paid by Customer</label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <input type="checkbox" id="paidToInsurer" checked={paidToInsurer} onChange={(e) => setPaidToInsurer(e.target.checked)}
+                                className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                            <label htmlFor="paidToInsurer" className="text-sm font-medium text-gray-700">Paid to Insurer</label>
                         </div>
                     </div>
                 </div>
-                <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-200">
-                    Add {paymentExpenseType}
+
+                {/* Customer Information */}
+                <div className="border border-gray-200 rounded-lg p-5">
+                    <h3 className="text-xl font-semibold text-gray-800 mb-4">Customer Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First Name <span className="text-red-500">*</span></label>
+                            <input type="text" id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Last Name <span className="text-red-500">*</span></label>
+                            <input type="text" id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">Phone Number</label>
+                            <input type="text" id="phoneNumber" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label htmlFor="idNumber" className="block text-sm font-medium text-gray-700">ID Number</label>
+                            <input type="text" id="idNumber" value={idNumber} onChange={(e) => setIdNumber(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="address" className="block text-sm font-medium text-gray-700">Address</label>
+                            <input type="text" id="address" value={address} onChange={(e) => setAddress(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label htmlFor="city" className="block text-sm font-medium text-gray-700">City</label>
+                            <input type="text" id="city" value={city} onChange={(e) => setCity(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">Postal Code</label>
+                            <input type="text" id="postalCode" value={postalCode} onChange={(e) => setPostalCode(e.target.value)}
+                                className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit"
+                    className="w-full bg-blue-600 text-white p-3 rounded-md shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">
+                    Add Policy
                 </button>
             </form>
         </div>
     );
-};
+});
 
 // ============================================================================
 // FINANCIAL REPORTS COMPONENT
 // ============================================================================
-const FinancialReports = ({ policies, paymentsExpenses, loadingPolicies, loadingPaymentsExpenses, formatDate }) => {
+const FinancialReports = React.memo(({ policies, paymentsExpenses, loadingPolicies, loadingPaymentsExpenses, formatDate }) => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [filteredPoliciesReport, setFilteredPoliciesReport] = useState([]);
@@ -174,7 +239,7 @@ const FinancialReports = ({ policies, paymentsExpenses, loadingPolicies, loading
                 return policyCreatedAt && policyCreatedAt >= start && policyCreatedAt <= end;
             });
             tempPaymentsExpenses = tempPaymentsExpenses.filter(item => {
-                const itemDate = item.createdAt?.toDate() || new Date(item.date); // Use createdAt or item.date for filtering
+                const itemDate = item.createdAt?.toDate() || new Date(item.date);
                 return itemDate && itemDate >= start && itemDate <= end;
             });
         }
@@ -195,7 +260,7 @@ const FinancialReports = ({ policies, paymentsExpenses, loadingPolicies, loading
     const amountDueToInsurer = totalUnpaidToInsurer - commissionNotPaidToInsurer;
 
     return (
-        <div className="p-5 bg-white rounded-xl shadow-sm space-y-6"> {/* Removed max-w-screen-lg and mx-auto */}
+        <div className="p-5 bg-white rounded-xl shadow-sm space-y-6"> {/* Fills available width */}
             <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Financial Reports</h2>
             <div className="mb-6 flex flex-col sm:flex-row justify-center items-center gap-4">
                 <div>
@@ -314,12 +379,12 @@ const FinancialReports = ({ policies, paymentsExpenses, loadingPolicies, loading
             </div>
         </div>
     );
-};
+});
 
 // ============================================================================
 // CUSTOMER MANAGEMENT COMPONENT
 // ============================================================================
-const CustomerManagement = ({ policies, loadingPolicies, setSelectedCustomerForEdit, setIsCustomerEditModalOpen }) => {
+const CustomerManagement = React.memo(({ policies, loadingPolicies, setSelectedCustomerForEdit, setIsCustomerEditModalOpen }) => {
     const uniqueCustomers = policies.reduce((acc, policy) => {
         if (policy.customer && policy.customer.idNumber) {
             if (!acc[policy.customer.idNumber]) {
@@ -351,13 +416,13 @@ const CustomerManagement = ({ policies, loadingPolicies, setSelectedCustomerForE
 
     const customersList = Object.values(uniqueCustomers);
 
-    const handleEditCustomerClick = (customer) => {
+    const handleEditCustomerClick = useCallback((customer) => {
         setSelectedCustomerForEdit(customer);
         setIsCustomerEditModalOpen(true);
-    };
+    }, [setSelectedCustomerForEdit, setIsCustomerEditModalOpen]);
 
     return (
-        <div className="p-5 bg-white rounded-xl shadow-sm space-y-6"> {/* Removed max-w-screen-lg and mx-auto */}
+        <div className="p-5 bg-white rounded-xl shadow-sm space-y-6"> {/* Fills available width */}
             <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Customer Management</h2>
             {loadingPolicies ? (
                 <div className="flex justify-center items-center h-48 text-blue-600 text-xl font-semibold">
@@ -415,21 +480,21 @@ const CustomerManagement = ({ policies, loadingPolicies, setSelectedCustomerForE
             )}
         </div>
     );
-};
+});
 
 // ============================================================================
 // VIEW POLICIES COMPONENT
 // ============================================================================
-const ViewPolicies = ({
+const ViewPolicies = React.memo(({
     policies, loadingPolicies, paymentsExpenses, loadingPaymentsExpenses,
     filterPolicyType, setFilterPolicyType,
     filterCustomerName, setFilterCustomerName,
     filterPolicyNumber, setFilterPolicyNumber,
     filterPaidByCustomer, setFilterPaidByCustomer,
     filterPaidToInsurer, setFilterPaidToInsurer,
-    filterValidUntilStartDate, setFilterValidUntilStartDate, // New props
-    filterValidUntilEndDate, setFilterValidUntilEndDate,     // New props
-    sortColumn, setSortColumn, sortDirection, getSortIndicator,
+    filterValidUntilStartDate, setFilterValidUntilStartDate,
+    filterValidUntilEndDate, setFilterValidUntilEndDate,
+    sortColumn, handleSort, sortDirection, getSortIndicator, // handleSort and getSortIndicator are memoized in App
     handleEditPolicyClick, handleDeletePolicy, toggleExpandedPolicy, expandedPolicyId, handleDeletePaymentExpense, formatDate,
     userId
 }) => {
@@ -479,8 +544,9 @@ const ViewPolicies = ({
             return 0;
         });
 
+
     return (
-        <div className="p-5 bg-white rounded-xl shadow-sm"> {/* Removed max-w-screen-lg and mx-auto */}
+        <div className="p-5 bg-white rounded-xl shadow-sm"> {/* Fills available width */}
             <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">View Insurance Policies</h2>
             {userId && (
                 <p className="text-sm text-gray-500 text-center mb-4">
@@ -552,22 +618,22 @@ const ViewPolicies = ({
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>{/* For expand button */}
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => setSortColumn('policyNumber')}>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('policyNumber')}>
                                     Policy #{getSortIndicator('policyNumber')}
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => setSortColumn('customer')}>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('customer')}>
                                     Customer{getSortIndicator('customer')}
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => setSortColumn('policyType')}>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('policyType')}>
                                     Type{getSortIndicator('policyType')}
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => setSortColumn('totalAmount')}>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('totalAmount')}>
                                     Amount{getSortIndicator('totalAmount')}
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => setSortColumn('policyDate')}>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('policyDate')}>
                                     Date{getSortIndicator('policyDate')}
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => setSortColumn('validUntil')}>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('validUntil')}>
                                     Valid Until{getSortIndicator('validUntil')}
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid by Customer</th>
@@ -662,17 +728,9 @@ const ViewPolicies = ({
                     </table>
                 </div>
             )}
-            {/* These modals can remain here if they are truly app-wide and not page-specific */}
-            {isPolicyEditModalOpen && (
-                <EditPolicyModal
-                    policy={selectedPolicyForEdit}
-                    onClose={() => setIsPolicyEditModalOpen(false)}
-                    onSave={handleUpdatePolicy}
-                />
-            )}
         </div>
     );
-};
+});
 
 
 // ============================================================================
@@ -809,31 +867,256 @@ const App = () => {
     }, [db, userId, isAuthReady]);
 
     // --- Authentication Handlers ---
-    const handleAuth = async (e) => { /* ... (unchanged) ... */ };
-    const handleLogout = async () => { /* ... (unchanged) ... */ };
+    const handleAuth = useCallback(async (e) => {
+        e.preventDefault();
+        setAuthMessage('');
+        try {
+            if (isLogin) {
+                await signInWithEmailAndPassword(auth, email, password);
+                setAuthMessage('Logged in successfully!');
+            } else {
+                await createUserWithEmailAndPassword(auth, email, password);
+                setAuthMessage('Registered and logged in successfully!');
+            }
+        } catch (error) {
+            console.error("Auth error:", error);
+            setAuthMessage(`Error: ${error.message}`);
+        }
+    }, [isLogin, email, password]); // Dependencies for handleAuth
+
+    const handleLogout = useCallback(async () => {
+        try {
+            await signOut(auth);
+            setAuthMessage('Logged out successfully!');
+            setPolicies([]);
+            setPaymentsExpenses([]);
+            setCurrentPage('dashboard');
+        } catch (error) {
+            console.error("Logout error:", error);
+            setAuthMessage(`Error logging out: ${error.message}`);
+        }
+    }, []); // No dependencies needed for simple signOut
 
     // --- Policy Handlers ---
-    const handleAddPolicy = async (e) => { /* ... (unchanged) ... */ };
-    const handleUpdatePolicy = async (updatedPolicy) => { /* ... (unchanged) ... */ };
-    const handleDeletePolicy = async (policyId, policyNumber) => { /* ... (unchanged) ... */ };
+    const handleAddPolicy = useCallback(async (e) => {
+        e.preventDefault();
+        setAuthMessage('');
+        let formMsg = '';
+
+        if (!db || !userId) {
+            formMsg = 'Error: Database not ready or user not authenticated. Please log in.';
+            setModalMessage(formMsg);
+            setShowModal(true);
+            return;
+        }
+
+        if (!policyNumber || !totalAmount || !policyDate || !validUntil || !firstName || !lastName) {
+            formMsg = 'Please fill in all required fields: Policy Number, Total Amount, Policy Date, Valid Until, Customer First Name, Customer Last Name.';
+            setModalMessage(formMsg);
+            setShowModal(true);
+            return;
+        }
+
+        try {
+            const projectId = auth.app.options.projectId;
+            await addDoc(collection(db, `artifacts/${projectId}/users/${userId}/policies`), {
+                policyType, policyDate, validUntil, totalAmount: parseFloat(totalAmount),
+                commission: parseFloat(commission) || 0, policyNumber, vehicleNumber, insuranceType,
+                paidByCustomer, paidToInsurer,
+                customer: { firstName, lastName, phoneNumber, idNumber, address, city, postalCode, },
+                createdAt: serverTimestamp(),
+            });
+            setModalMessage('Policy added successfully!');
+            setShowModal(true);
+            // Clear form fields
+            setPolicyType('New Policy'); setPolicyDate(''); setValidUntil(''); setTotalAmount('');
+            setCommission(''); setPolicyNumber(''); setVehicleNumber(''); setInsuranceType('');
+            setPaidByCustomer(false); setPaidToInsurer(false); setFirstName(''); setLastName('');
+            setPhoneNumber(''); setIdNumber(''); setAddress(''); setCity(''); setPostalCode('');
+        } catch (error) {
+            console.error("Error adding document: ", error);
+            setModalMessage(`Error adding policy: ${error.message}`);
+            setShowModal(true);
+        }
+    }, [
+        db, userId, auth.app.options.projectId, policyType, policyDate, validUntil, totalAmount,
+        commission, policyNumber, vehicleNumber, insuranceType, paidByCustomer, paidToInsurer,
+        firstName, lastName, phoneNumber, idNumber, address, city, postalCode,
+        setModalMessage, setShowModal, setPolicyType, setPolicyDate, setValidUntil, setTotalAmount,
+        setCommission, setPolicyNumber, setVehicleNumber, setInsuranceType, setPaidByCustomer,
+        setPaidToInsurer, setFirstName, setLastName, setPhoneNumber, setIdNumber, setAddress,
+        setCity, setPostalCode
+    ]); // Dependencies for handleAddPolicy
+
+    const handleUpdatePolicy = useCallback(async (updatedPolicy) => {
+        if (!db || !userId || !updatedPolicy.id) {
+            setModalMessage('Error: Database not ready or policy ID missing.');
+            setShowModal(true);
+            return;
+        }
+        try {
+            const projectId = auth.app.options.projectId;
+            const policyRef = doc(db, `artifacts/${projectId}/users/${userId}/policies`, updatedPolicy.id);
+            await updateDoc(policyRef, {
+                policyType: updatedPolicy.policyType, policyDate: updatedPolicy.policyDate,
+                validUntil: updatedPolicy.validUntil, totalAmount: parseFloat(updatedPolicy.totalAmount),
+                commission: parseFloat(updatedPolicy.commission) || 0, policyNumber: updatedPolicy.policyNumber,
+                vehicleNumber: updatedPolicy.vehicleNumber, insuranceType: updatedPolicy.insuranceType,
+                paidByCustomer: updatedPolicy.paidByCustomer, paidToInsurer: updatedPolicy.paidToInsurer,
+                customer: {
+                    firstName: updatedPolicy.customer.firstName, lastName: updatedPolicy.customer.lastName,
+                    phoneNumber: updatedPolicy.customer.phoneNumber, idNumber: updatedPolicy.customer.idNumber,
+                    address: updatedPolicy.customer.address, city: updatedPolicy.customer.city,
+                    postalCode: updatedPolicy.customer.postalCode,
+                },
+            });
+            setModalMessage('Policy updated successfully!');
+            setShowModal(true);
+            setIsPolicyEditModalOpen(false);
+            setSelectedPolicyForEdit(null);
+        } catch (error) {
+            console.error("Error updating policy: ", error);
+            setModalMessage(`Error updating policy: ${error.message}`);
+            setShowModal(true);
+        }
+    }, [db, userId, auth.app.options.projectId, setModalMessage, setShowModal, setIsPolicyEditModalOpen, setSelectedPolicyForEdit]); // Dependencies for handleUpdatePolicy
+
+    const handleDeletePolicy = useCallback(async (policyId, policyNumber) => {
+        if (!db || !userId) {
+            setModalMessage('Error: Database not ready or user not authenticated.');
+            setShowModal(true);
+            return;
+        }
+        if (window.confirm(`Are you sure you want to delete policy number: ${policyNumber}? This will also delete all associated payments/expenses. This action cannot be undone.`)) {
+            try {
+                const projectId = auth.app.options.projectId;
+                const policyRef = doc(db, `artifacts/${projectId}/users/${userId}/policies`, policyId);
+                await deleteDoc(policyRef);
+
+                const relatedPaymentsExpenses = paymentsExpenses.filter(item => item.policyId === policyId);
+                const deletePromises = relatedPaymentsExpenses.map(item => {
+                    const itemRef = doc(db, `artifacts/${projectId}/users/${userId}/payments_expenses`, item.id);
+                    return deleteDoc(itemRef);
+                });
+                await Promise.all(deletePromises);
+
+                setModalMessage('Policy and associated items deleted successfully!');
+                setShowModal(true);
+            } catch (error) {
+                console.error("Error deleting policy: ", error);
+                setModalMessage(`Error deleting policy: ${error.message}`);
+                setShowModal(true);
+            }
+        }
+    }, [db, userId, auth.app.options.projectId, paymentsExpenses, setModalMessage, setShowModal]); // Dependencies for handleDeletePolicy
 
     // --- Customer Handlers ---
-    const handleUpdateCustomer = async (updatedCustomer) => { /* ... (unchanged) ... */ };
+    const handleUpdateCustomer = useCallback(async (updatedCustomer) => {
+        if (!db || !userId || !updatedCustomer.idNumber) {
+            setModalMessage('Error: Database not ready or customer ID Number missing.');
+            setShowModal(true);
+            return;
+        }
+        try {
+            const projectId = auth.app.options.projectId;
+            const batchUpdates = policies.map(policy => {
+                if (policy.customer && policy.customer.idNumber === updatedCustomer.idNumber) {
+                    const policyRef = doc(db, `artifacts/${projectId}/users/${userId}/policies`, policy.id);
+                    return updateDoc(policyRef, {
+                        'customer.firstName': updatedCustomer.firstName, 'customer.lastName': updatedCustomer.lastName,
+                        'customer.phoneNumber': updatedCustomer.phoneNumber, 'customer.address': updatedCustomer.address,
+                        'customer.city': updatedCustomer.city, 'customer.postalCode': updatedCustomer.postalCode,
+                    });
+                }
+                return Promise.resolve();
+            }).filter(Boolean);
+
+            await Promise.all(batchUpdates);
+
+            setModalMessage('Customer details updated successfully across all associated policies!');
+            setShowModal(true);
+            setIsCustomerEditModalOpen(false);
+            setSelectedCustomerForEdit(null);
+        } catch (error) {
+            console.error("Error updating customer details: ", error);
+            setModalMessage(`Error updating customer: ${error.message}`);
+            setShowModal(true);
+        }
+    }, [db, userId, auth.app.options.projectId, policies, setModalMessage, setShowModal, setIsCustomerEditModalOpen, setSelectedCustomerForEdit]); // Dependencies for handleUpdateCustomer
 
     // --- Payment/Expense Handlers ---
-    const handleAddPaymentExpense = async (e) => { /* ... (unchanged) ... */ };
-    const handleDeletePaymentExpense = async (itemId, itemType, itemAmount) => { /* ... (unchanged) ... */ };
+    const handleAddPaymentExpense = useCallback(async (e) => {
+        e.preventDefault();
+        if (!db || !userId) {
+            setModalMessage('Error: Database not ready or user not authenticated. Please log in.');
+            setShowModal(true);
+            return;
+        }
 
-    // --- Helper Functions ---
-    const formatDate = (dateString) => { /* ... (unchanged) ... */ };
-    // Memoized sort indicator getter
+        if (!paymentExpenseDate || !paymentExpenseAmount || !paymentExpenseType) {
+            setModalMessage('Please fill in Date, Amount, and Type for the payment/expense.');
+            setShowModal(true);
+            return;
+        }
+
+        try {
+            const projectId = auth.app.options.projectId;
+            await addDoc(collection(db, `artifacts/${projectId}/users/${userId}/payments_expenses`), {
+                type: paymentExpenseType, date: paymentExpenseDate, amount: parseFloat(paymentExpenseAmount),
+                reason: paymentExpenseReason, policyId: selectedPolicyForPayment || null,
+                createdAt: serverTimestamp(),
+            });
+            setModalMessage(`${paymentExpenseType} added successfully!`);
+            setShowModal(true);
+            // Clear form fields
+            setPaymentExpenseType('Payment'); setPaymentExpenseDate(''); setPaymentExpenseAmount('');
+            setPaymentExpenseReason(''); setSelectedPolicyForPayment('');
+        } catch (error) {
+            console.error("Error adding payment/expense: ", error);
+            setModalMessage(`Error adding ${paymentExpenseType}: ${error.message}`);
+            setShowModal(true);
+        }
+    }, [
+        db, userId, auth.app.options.projectId, paymentExpenseType, paymentExpenseDate, paymentExpenseAmount,
+        paymentExpenseReason, selectedPolicyForPayment, setModalMessage, setShowModal, setPaymentExpenseType,
+        setPaymentExpenseDate, setPaymentExpenseAmount, setPaymentExpenseReason, setSelectedPolicyForPayment
+    ]); // Dependencies for handleAddPaymentExpense
+
+    const handleDeletePaymentExpense = useCallback(async (itemId, itemType, itemAmount) => {
+        if (!db || !userId) {
+            setModalMessage('Error: Database not ready or user not authenticated.');
+            setShowModal(true);
+            return;
+        }
+        if (window.confirm(`Are you sure you want to delete this ${itemType} of BGN ${itemAmount?.toFixed(2) || ''}? This action cannot be undone.`)) {
+            try {
+                const projectId = auth.app.options.projectId;
+                const itemRef = doc(db, `artifacts/${projectId}/users/${userId}/payments_expenses`, itemId);
+                await deleteDoc(itemRef);
+                setModalMessage(`${itemType} deleted successfully!`);
+                setShowModal(true);
+            } catch (error) {
+                console.error("Error deleting payment/expense: ", error);
+                setModalMessage(`Error deleting ${itemType}: ${error.message}`);
+                setShowModal(true);
+            }
+        }
+    }, [db, userId, auth.app.options.projectId, setModalMessage, setShowModal]); // Dependencies for handleDeletePaymentExpense
+
+    // --- Helper Functions (Memoized) ---
+    const formatDate = useCallback((dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toISOString().split('T')[0];
+    }, []);
+
     const getSortIndicator = useCallback((column) => {
         if (sortColumn === column) {
             return sortDirection === 'asc' ? ' ▲' : ' ▼';
         }
         return '';
     }, [sortColumn, sortDirection]);
-    // Memoized sort handler
+
     const handleSort = useCallback((column) => {
         if (sortColumn === column) {
             setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
@@ -842,6 +1125,10 @@ const App = () => {
             setSortDirection('asc');
         }
     }, [sortColumn]);
+
+    const toggleExpandedPolicy = useCallback((policyId) => {
+        setExpandedPolicyId(prevId => (prevId === policyId ? null : policyId));
+    }, []); // setExpandedPolicyId is stable from useState
 
 
     // Render current page based on state
@@ -902,120 +1189,26 @@ const App = () => {
                 return <Dashboard policies={policies} loadingPolicies={loadingPolicies} />;
             case 'addPolicy':
                 return (
-                    <div className="p-5 bg-white rounded-xl shadow-sm space-y-6">
-                        <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-6">Add New Insurance Policy</h2>
-                        <form onSubmit={handleAddPolicy} className="space-y-6">
-                            <div className="border border-gray-200 rounded-lg p-5">
-                                <h3 className="text-xl font-semibold text-gray-800 mb-4">Policy Details</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label htmlFor="policyType" className="block text-sm font-medium text-gray-700">Policy Type</label>
-                                        <select id="policyType" value={policyType} onChange={(e) => setPolicyType(e.target.value)}
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                            <option>New Policy</option>
-                                            <option>Policy Payment</option>
-                                            <option>Toll</option>
-                                            <option>Assessment</option>
-                                            <option>Sticker</option>
-                                            <option>Certificate</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label htmlFor="policyNumber" className="block text-sm font-medium text-gray-700">Policy Number <span className="text-red-500">*</span></label>
-                                        <input type="text" id="policyNumber" value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} required
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="policyDate" className="block text-sm font-medium text-gray-700">Policy Date <span className="text-red-500">*</span></label>
-                                        <input type="date" id="policyDate" value={policyDate} onChange={(e) => setPolicyDate(e.target.value)} required
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="validUntil" className="block text-sm font-medium text-gray-700">Valid Until <span className="text-red-500">*</span></label>
-                                        <input type="date" id="validUntil" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} required
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="totalAmount" className="block text-sm font-medium text-gray-700">Total Amount (BGN) <span className="text-red-500">*</span></label>
-                                        <input type="number" step="0.01" id="totalAmount" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} required
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="commission" className="block text-sm font-medium text-gray-700">Commission (BGN)</label>
-                                        <input type="number" step="0.01" id="commission" value={commission} onChange={(e) => setCommission(e.target.value)}
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="vehicleNumber" className="block text-sm font-medium text-gray-700">Vehicle Number</label>
-                                        <input type="text" id="vehicleNumber" value={vehicleNumber} onChange={(e) => setVehicleNumber(e.target.value)}
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="insuranceType" className="block text-sm font-medium text-gray-700">Insurance Type</label>
-                                        <input type="text" id="insuranceType" value={insuranceType} onChange={(e) => setInsuranceType(e.target.value)}
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <input type="checkbox" id="paidByCustomer" checked={paidByCustomer} onChange={(e) => setPaidByCustomer(e.target.checked)}
-                                            className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
-                                        <label htmlFor="paidByCustomer" className="text-sm font-medium text-gray-700">Paid by Customer</label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <input type="checkbox" id="paidToInsurer" checked={paidToInsurer} onChange={(e) => setPaidToInsurer(e.target.checked)}
-                                            className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
-                                        <label htmlFor="paidToInsurer" className="text-sm font-medium text-gray-700">Paid to Insurer</label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Customer Information */}
-                            <div className="border border-gray-200 rounded-lg p-5">
-                                <h3 className="text-xl font-semibold text-gray-800 mb-4">Customer Information</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First Name <span className="text-red-500">*</span></label>
-                                        <input type="text" id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Last Name <span className="text-red-500">*</span></label>
-                                        <input type="text" id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">Phone Number</label>
-                                        <input type="text" id="phoneNumber" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)}
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="idNumber" className="block text-sm font-medium text-gray-700">ID Number</label>
-                                        <input type="text" id="idNumber" value={idNumber} onChange={(e) => setIdNumber(e.target.value)}
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label htmlFor="address" className="block text-sm font-medium text-gray-700">Address</label>
-                                        <input type="text" id="address" value={address} onChange={(e) => setAddress(e.target.value)}
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="city" className="block text-sm font-medium text-gray-700">City</label>
-                                        <input type="text" id="city" value={city} onChange={(e) => setCity(e.target.value)}
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700">Postal Code</label>
-                                        <input type="text" id="postalCode" value={postalCode} onChange={(e) => setPostalCode(e.target.value)}
-                                            className="mt-1 block w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="submit"
-                                className="w-full bg-blue-600 text-white p-3 rounded-md shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">
-                                Add Policy
-                            </button>
-                        </form>
-                    </div>
+                    <AddPolicy
+                        policyType={policyType} setPolicyType={setPolicyType}
+                        policyDate={policyDate} setPolicyDate={setPolicyDate}
+                        validUntil={validUntil} setValidUntil={setValidUntil}
+                        totalAmount={totalAmount} setTotalAmount={setTotalAmount}
+                        commission={commission} setCommission={setCommission}
+                        policyNumber={policyNumber} setPolicyNumber={setPolicyNumber}
+                        vehicleNumber={vehicleNumber} setVehicleNumber={setVehicleNumber}
+                        insuranceType={insuranceType} setInsuranceType={setInsuranceType}
+                        paidByCustomer={paidByCustomer} setPaidByCustomer={setPaidByCustomer}
+                        paidToInsurer={paidToInsurer} setPaidToInsurer={setPaidToInsurer}
+                        firstName={firstName} setFirstName={setFirstName}
+                        lastName={lastName} setLastName={setLastName}
+                        phoneNumber={phoneNumber} setPhoneNumber={setPhoneNumber}
+                        idNumber={idNumber} setIdNumber={setIdNumber}
+                        address={address} setAddress={setAddress}
+                        city={city} setCity={setCity}
+                        postalCode={postalCode} setPostalCode={setPostalCode}
+                        handleAddPolicy={handleAddPolicy}
+                    />
                 );
             case 'viewPolicies':
                 return (
@@ -1031,8 +1224,8 @@ const App = () => {
                         filterPaidToInsurer={filterPaidToInsurer} setFilterPaidToInsurer={setFilterPaidToInsurer}
                         filterValidUntilStartDate={filterValidUntilStartDate} setFilterValidUntilStartDate={setFilterValidUntilStartDate}
                         filterValidUntilEndDate={filterValidUntilEndDate} setFilterValidUntilEndDate={setFilterValidUntilEndDate}
-                        sortColumn={sortColumn} setSortColumn={setSortColumn} sortDirection={sortDirection} getSortIndicator={getSortIndicator}
-                        handleEditPolicyClick={(policy) => { setSelectedPolicyForEdit(policy); setIsPolicyEditModalOpen(true); }}
+                        sortColumn={sortColumn} handleSort={handleSort} sortDirection={sortDirection} getSortIndicator={getSortIndicator}
+                        handleEditPolicyClick={handleEditPolicyClick} // This will be the memoized handleEditPolicyClick
                         handleDeletePolicy={handleDeletePolicy}
                         toggleExpandedPolicy={toggleExpandedPolicy}
                         expandedPolicyId={expandedPolicyId}
@@ -1068,30 +1261,32 @@ const App = () => {
                     <CustomerManagement
                         policies={policies}
                         loadingPolicies={loadingPolicies}
-                        setSelectedCustomerForEdit={(customer) => { setSelectedCustomerForEdit(customer); }}
-                        setIsCustomerEditModalOpen={(isOpen) => { setIsCustomerEditModalOpen(isOpen); }}
+                        setSelectedCustomerForEdit={setSelectedCustomerForEdit}
+                        setIsCustomerEditModalOpen={setIsCustomerEditModalOpen}
                     />
                 );
             default:
                 return null;
         }
     }, [
-        user, isLogin, email, password, authMessage, handleAuth, currentPage, policies, loadingPolicies,
-        paymentsExpenses, loadingPaymentsExpenses, expandedPolicyId,
-        filterPolicyType, setFilterPolicyType, filterCustomerName, setFilterCustomerName, filterPolicyNumber, setFilterPolicyNumber,
-        filterPaidByCustomer, setFilterPaidByCustomer, filterPaidToInsurer, setFilterPaidToInsurer,
-        filterValidUntilStartDate, setFilterValidUntilStartDate, filterValidUntilEndDate, setFilterValidUntilEndDate,
-        sortColumn, setSortColumn, sortDirection, getSortIndicator, handleSort, // Ensure handleSort and getSortIndicator are passed to ViewPolicies
-        isPolicyEditModalOpen, setSelectedPolicyForEdit, setIsPolicyEditModalOpen,
-        isCustomerEditModalOpen, setSelectedCustomerForEdit, setIsCustomerEditModalOpen,
-        handleAddPolicy, handleUpdatePolicy, handleUpdateCustomer, handleDeletePolicy, handleDeletePaymentExpense, userId, isAuthReady,
-        policyType, setPolicyType, policyDate, setPolicyDate, validUntil, setValidUntil, totalAmount, setTotalAmount, commission, setCommission,
-        policyNumber, setPolicyNumber, vehicleNumber, setVehicleNumber, insuranceType, setInsuranceType,
-        paidByCustomer, setPaidByCustomer, paidToInsurer, setPaidToInsurer, firstName, setFirstName, lastName, setLastName,
-        phoneNumber, setPhoneNumber, idNumber, setIdNumber, address, setAddress, city, setCity, postalCode, setPostalCode,
-        paymentExpenseType, setPaymentExpenseType, paymentExpenseDate, setPaymentExpenseDate, paymentExpenseAmount, setPaymentExpenseAmount,
-        paymentExpenseReason, setPaymentExpenseReason, selectedPolicyForPayment, setSelectedPolicyForPayment, handleAddPaymentExpense,
-        toggleExpandedPolicy, formatDate // Pass toggleExpandedPolicy and formatDate as well
+        user, isAuthReady, currentPage, isLogin, authMessage, email, password, policies, loadingPolicies,
+        paymentsExpenses, loadingPaymentsExpenses, userId, expandedPolicyId, sortColumn, sortDirection,
+        filterPolicyType, filterCustomerName, filterPolicyNumber, filterPaidByCustomer, filterPaidToInsurer,
+        filterValidUntilStartDate, filterValidUntilEndDate,
+        policyType, policyDate, validUntil, totalAmount, commission, policyNumber, vehicleNumber, insuranceType,
+        paidByCustomer, paidToInsurer, firstName, lastName, phoneNumber, idNumber, address, city, postalCode,
+        paymentExpenseType, paymentExpenseDate, paymentExpenseAmount, paymentExpenseReason, selectedPolicyForPayment,
+        // Memoized functions as dependencies (their references are stable)
+        handleAuth, handleLogout, handleAddPolicy, handleUpdatePolicy, handleDeletePolicy, handleUpdateCustomer,
+        handleAddPaymentExpense, handleDeletePaymentExpense, formatDate, getSortIndicator, handleSort,
+        toggleExpandedPolicy, setIsLogin, setEmail, setPassword, setAuthMessage, setModalMessage, setShowModal,
+        setFilterPolicyType, setFilterCustomerName, setFilterPolicyNumber, setFilterPaidByCustomer, setFilterPaidToInsurer,
+        setFilterValidUntilStartDate, setFilterValidUntilEndDate, setSortColumn, setSortDirection, setExpandedPolicyId,
+        setSelectedPolicyForEdit, setIsPolicyEditModalOpen, setSelectedCustomerForEdit, setIsCustomerEditModalOpen,
+        setPolicyType, setPolicyDate, setValidUntil, setTotalAmount, setCommission, setPolicyNumber, setVehicleNumber,
+        setInsuranceType, setPaidByCustomer, setPaidToInsurer, setFirstName, setLastName, setPhoneNumber, setIdNumber,
+        setAddress, setCity, setPostalCode, setPaymentExpenseType, setPaymentExpenseDate, setPaymentExpenseAmount,
+        setPaymentExpenseReason, setSelectedPolicyForPayment,
     ]);
 
 
@@ -1124,7 +1319,7 @@ const App = () => {
 
             <div className="flex flex-col lg:flex-row min-h-screen">
                 {/* Sidebar */}
-                {/* ADJUSTED w-56 to w-48 */}
+                {/* Adjusted w-56 to w-48 (12rem) for closer spacing */}
                 <aside className={`fixed lg:static inset-y-0 left-0 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out
                                 w-48 bg-[#F8FAFC] text-gray-800 shadow-lg p-6 flex flex-col z-50`}>
                     <div className="flex items-center justify-between lg:justify-center mb-10">
@@ -1189,7 +1384,7 @@ const App = () => {
                 </aside>
 
                 {/* Main Content Area */}
-                {/* ADJUSTED lg:ml-56 to lg:ml-48 */}
+                {/* Adjusted lg:ml-56 to lg:ml-48 */}
                 <div className="flex-1 lg:ml-48 p-4 sm:p-6 md:p-8">
                     {/* Mobile Header/Hamburger Menu */}
                     <header className="lg:hidden flex items-center justify-between mb-8 p-4 bg-white rounded-xl shadow-sm">
@@ -1231,13 +1426,13 @@ export default App;
 // ============================================================================
 // EDIT POLICY MODAL COMPONENT (moved outside App component)
 // ============================================================================
-const EditPolicyModal = ({ policy, onClose, onSave }) => {
+const EditPolicyModal = React.memo(({ policy, onClose, onSave }) => {
     // Helper function to format dates as YYYY-MM-DD (can be passed as prop or defined here if only used here)
-    const formatDate = (dateString) => {
+    const formatDate = useCallback((dateString) => {
         if (!dateString) return '';
         const date = new Date(dateString);
         return date.toISOString().split('T')[0];
-    };
+    }, []);
 
     const [editPolicyData, setEditPolicyData] = useState(policy);
 
@@ -1247,7 +1442,7 @@ const EditPolicyModal = ({ policy, onClose, onSave }) => {
             policyDate: formatDate(policy.policyDate),
             validUntil: formatDate(policy.validUntil)
         });
-    }, [policy]);
+    }, [policy, formatDate]);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -1401,12 +1596,12 @@ const EditPolicyModal = ({ policy, onClose, onSave }) => {
             </div>
         </div>
     );
-};
+});
 
 // ============================================================================
 // EDIT CUSTOMER MODAL COMPONENT (moved outside App component)
 // ============================================================================
-const EditCustomerModal = ({ customer, onClose, onSave }) => {
+const EditCustomerModal = React.memo(({ customer, onClose, onSave }) => {
     const [editCustomerData, setEditCustomerData] = useState(customer);
 
     const handleChange = (e) => {
@@ -1480,4 +1675,4 @@ const EditCustomerModal = ({ customer, onClose, onSave }) => {
             </div>
         </div>
     );
-};
+});
